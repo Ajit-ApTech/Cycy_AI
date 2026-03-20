@@ -1,0 +1,54 @@
+{
+  "name": "cycy-ai-agent",
+  "displayName": "Cycy AI",
+  "description": "Cycy AI agentic coding assistant for VS Code",
+  "version": "1.0.0",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Machine Learning",
+    "Other"
+  ],
+  "activationEvents": [
+    "onView:cycy-chat"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "cycy-view-container",
+          "title": "Cycy AI",
+          "icon": "$(zap)"
+        }
+      ]
+    },
+    "views": {
+      "cycy-view-container": [
+        {
+          "type": "webview",
+          "id": "cycy-chat",
+          "name": "Chat"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "cycy.openChat",
+        "title": "Cycy: Open Chat"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/node": "18.x",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.3"
+  }
+}

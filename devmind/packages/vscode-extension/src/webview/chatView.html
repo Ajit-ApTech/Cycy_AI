@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cycy AI</title>
+    <!-- Include basic icons (Lucide via CDN or simple SVGs) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --panel-bg: #1e1e1e;
+            --border-color: #2a2a2a;
+            --text-main: #ccc;
+            --text-muted: #888;
+            --accent: #0e639c;
+            --accent-hover: #1177bb;
+            --user-bubble: linear-gradient(135deg, #0e639c 0%, #007acc 100%);
+            --ai-bubble: transparent;
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --code-bg: #1a1a1a;
+            --code-border: #333;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: var(--font-family);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Header */
+        .header {
+            padding: 9px 12px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+            background-color: var(--bg-color);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .app-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #e0e0e0;
+            margin-right: 8px;
+        }
+
+        .badge {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: #2d2d2d;
+            border: 1px solid #3d3d3d;
+            border-radius: 12px;
+            padding: 3px 9px;
+            font-size: 11px;
+            cursor: pointer;
+            color: #e5c07b;
+        }
+
+        .badge-provider {
+            background: #2a2222;
+            border: 1px solid #5a3333;
+            color: #f44747;
+        }
+
+        .badge-provider.configured {
+            background: #1d3a1d;
+            border: 1px solid #2d6a2d;
+            color: #89d185;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            color: #555;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4px;
+            border-radius: 4px;
+        }
+
+        .icon-btn:hover {
+            color: #f44747;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        /* Chat Area */
+        .chat-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #555;
+            gap: 10px;
+            text-align: center;
+        }
+
+        /* Messages */
+        .message {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .message.user {
+            align-items: flex-end;
+        }
+
+        .message.assistant {
+            align-items: flex-start;
+        }
+
+        .message.system {
+            align-items: center;
+            font-size: 11px;
+            color: #888;
+            font-style: italic;
+            margin-bottom: 8px;
+        }
+
+        .bubble-user {
+            background: var(--user-bubble);
+            color: #fff;
+            padding: 10px 14px;
+            border-radius: 16px 16px 4px 16px;
+            max-width: 85%;
+            font-size: 13px;
+            line-height: 1.5;
+            word-wrap: break-word;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .bubble-assistant {
+            max-width: 100%;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #d4d4d4;
+        }
+
+        .assistant-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 4px;
+        }
+
+        .assistant-name {
+            font-size: 11px;
+            color: #555;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        /* Markdown Parsing Styles */
+        pre {
+            background: var(--code-bg);
+            border-radius: 6px;
+            padding: 10px 12px;
+            margin: 6px 0;
+            font-size: 12px;
+            overflow-x: auto;
+            border: 1px solid var(--code-border);
+            font-family: monospace;
+        }
+
+        code {
+            font-family: monospace;
+            color: #abb2bf;
+        }
+
+        .inline-code {
+            background: #2d2d2d;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+
+        .thought-block {
+            background: #252526;
+            border-left: 2px solid var(--accent);
+            padding: 8px 12px;
+            margin: 8px 0;
+            font-size: 12px;
+            color: #888;
+            border-radius: 0 4px 4px 0;
+            line-height: 1.4;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .thought-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            user-select: none;
+            font-size: 10px;
+            color: var(--accent);
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .thought-content {
+            white-space: pre-wrap;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .thought-block.collapsed .thought-content {
+            display: none;
+        }
+
+        .thought-block.collapsed {
+            opacity: 0.6;
+            padding: 4px 12px;
+        }
+
+        .tool-block {
+            background: #1e1e1e;
+            border: 1px solid #333;
+            border-radius: 6px;
+            padding: 8px 10px;
+            margin: 8px 0;
+            font-size: 11px;
+            color: #aaa;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .spinner {
+            width: 12px;
+            height: 12px;
+            border: 2px solid #555;
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        /* Input Area */
+        .input-area {
+            border-top: 1px solid var(--border-color);
+            padding: 10px;
+            flex-shrink: 0;
+            background: var(--bg-color);
+        }
+
+        .input-box {
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+            background: #2d2d2d;
+            border-radius: 10px;
+            border: 1px solid #3d3d3d;
+            padding: 6px 8px;
+        }
+
+        textarea {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #d4d4d4;
+            resize: none;
+            outline: none;
+            font-size: 13px;
+            line-height: 1.5;
+            min-height: 20px;
+            max-height: 160px;
+            font-family: inherit;
+            padding: 2px 0;
+            overflow-y: hidden;
+        }
+
+        .send-btn {
+            background: #2a2a2a;
+            border: none;
+            border-radius: 6px;
+            padding: 6px;
+            color: #555;
+            cursor: default;
+            display: flex;
+            transition: background 0.15s;
+        }
+
+        .send-btn.active {
+            background: var(--accent);
+            color: white;
+            cursor: pointer;
+        }
+
+        .stop-btn {
+            background: #c0392b;
+            border: none;
+            border-radius: 6px;
+            padding: 6px;
+            color: white;
+            cursor: pointer;
+            display: flex;
+        }
+
+        /* Settings Overlay */
+        .settings-overlay {
+            position: absolute;
+            inset: 0;
+            background: var(--panel-bg);
+            z-index: 20;
+            display: none;
+            flex-direction: column;
+            padding: 16px;
+            gap: 12px;
+            overflow-y: auto;
+        }
+
+        .settings-overlay.show {
+            display: flex;
+        }
+
+        .settings-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            font-size: 14px;
+            color: #e0e0e0;
+        }
+
+        .settings-label {
+            font-size: 11px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .provider-btn {
+            text-align: left;
+            padding: 8px 12px;
+            background: #2d2d2d;
+            border: 1px solid #3d3d3d;
+            border-radius: 6px;
+            color: #d4d4d4;
+            cursor: pointer;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .provider-btn.active {
+            background: #0e639c22;
+            border-color: var(--accent);
+        }
+
+        input.settings-input,
+        select.settings-select {
+            width: 100%;
+            background: #2d2d2d;
+            border: 1px solid #3d3d3d;
+            border-radius: 6px;
+            color: #d4d4d4;
+            padding: 8px 10px;
+            font-size: 12px;
+            outline: none;
+            box-sizing: border-box;
+        }
+
+        button.primary-btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 10px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            margin-top: 4px;
+        }
+
+        button.secondary-btn {
+            background: #2d2d2d;
+            color: #d4d4d4;
+            border: 1px solid #3d3d3d;
+            border-radius: 6px;
+            padding: 6px 10px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-top: 2px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes pulse {
+
+            0%,
+            80%,
+            100% {
+                opacity: .3;
+                transform: scale(.8)
+            }
+
+            40% {
+                opacity: 1;
+                transform: scale(1.1)
+            }
+        }
+
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #888;
+            font-size: 12px;
+            padding: 8px;
+        }
+
+        .typing-dots {
+            display: flex;
+            gap: 4px;
+        }
+
+        .typing-dots div {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #555;
+            animation: pulse 1.2s infinite ease-in-out;
+        }
+
+        .typing-dots div:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dots div:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Header -->
+    <div class="header">
+        <div class="header-left">
+            <span class="app-title">Cycy</span>
+
+            <!-- Mode Picker -->
+            <div style="position: relative;">
+                <button id="mode-btn" class="badge" onclick="toggleModeMenu(event)" style="color: #e5c07b;">
+                    <i id="mode-icon" data-lucide="zap" style="width:11px;height:11px;"></i>
+                    <span id="mode-label">Fast</span>
+                    <i data-lucide="chevron-down" style="width:10px;height:10px;margin-left:2px;"></i>
+                </button>
+                <div id="mode-menu"
+                    style="display: none; position: absolute; top: 110%; left: 0; background: #252526; border: 1px solid #3d3d3d; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); z-index: 100; min-width: 160px; overflow: hidden; flex-direction: column;">
+                    <button class="mode-option" onclick="selectMode('fast')"
+                        style="display: flex; flex-direction: column; width: 100%; text-align: left; padding: 9px 12px; border: none; cursor: pointer; color: #e5c07b; background: #2a2d2e;">
+                        <span
+                            style="display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600;"><i
+                                data-lucide="zap" style="width:12px;height:12px;"></i> Fast</span>
+                        <span style="font-size: 11px; color: #888;">Instant answers</span>
+                    </button>
+                    <button class="mode-option" onclick="selectMode('plan')"
+                        style="display: flex; flex-direction: column; width: 100%; text-align: left; padding: 9px 12px; background: transparent; border: none; cursor: pointer; color: #61afef;">
+                        <span
+                            style="display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600;"><i
+                                data-lucide="map" style="width:12px;height:12px;"></i> Plan</span>
+                        <span style="font-size: 11px; color: #888;">Think step by step</span>
+                    </button>
+                </div>
+            </div>
+
+            <button id="provider-badge" class="badge badge-provider" onclick="toggleSettings(true)">
+                <i data-lucide="settings" style="width:11px;height:11px;"></i> Setup
+            </button>
+        </div>
+        <button class="icon-btn" onclick="clearHistory()" title="Clear Chat">
+            <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
+        </button>
+    </div>
+
+    <!-- Chat Area -->
+    <div class="chat-area" id="chat-container">
+        <div class="empty-state" id="empty-state">
+            <i data-lucide="zap" style="width:30px;height:30px;color:#444;"></i>
+            <div style="font-size: 14px; color: #888;">Ask Cycy anything</div>
+            <div id="setup-hint"
+                style="font-size: 12px; color: var(--accent); cursor: pointer; text-decoration: underline;"
+                onclick="toggleSettings(true)">Configure AI provider first →</div>
+        </div>
+    </div>
+
+    <!-- Input Area -->
+    <div class="input-area">
+        <div class="input-box">
+            <textarea id="chat-input" rows="1" placeholder="Configure a provider first →" disabled></textarea>
+            <button id="send-btn" class="send-btn"><i data-lucide="send" style="width:14px;height:14px;"></i></button>
+            <button id="stop-btn" class="stop-btn" style="display: none;"><i data-lucide="square"
+                    style="width:14px;height:14px;fill:currentColor"></i></button>
+        </div>
+        <div style="margin-top: 4px; font-size: 11px; color: #444; text-align: right;">Enter to send · Shift+Enter for
+            new line</div>
+    </div>
+
+    <!-- Settings Overlay -->
+    <div class="settings-overlay" id="settings-overlay">
+        <div class="settings-title">
+            <span>AI Provider Settings</span>
+            <button class="icon-btn" onclick="toggleSettings(false)"><i data-lucide="x"
+                    style="width:16px;height:16px;"></i></button>
+        </div>
+
+        <div>
+            <label class="settings-label">Provider</label>
+            <div id="provider-list"></div>
+        </div>
+
+        <div>
+            <label class="settings-label"><i data-lucide="key" style="width:11px;height:11px;"></i> API Key</label>
+            <input type="password" id="api-key-input" class="settings-input" placeholder="Enter API Key">
+            <div style="margin-top: 6px; text-align: right;">
+                <p style="font-size: 11px; color: #555; float: left; margin:0;">Stored securely in VS Code.</p>
+            </div>
+        </div>
+
+        <button class="secondary-btn" onclick="fetchModels()">Fetch Available Models</button>
+
+        <div>
+            <label class="settings-label">Model</label>
+            <select id="model-select" class="settings-select"></select>
+        </div>
+
+        <button class="primary-btn" onclick="applySettings()">Apply & Connect</button>
+    </div>
+
+    <script>
+        lucide.createIcons();
+        const vscode = acquireVsCodeApi();
+
+        const PROVIDERS = {
+            nvidia: { label: '⚡ NVIDIA NIM', defaultModels: ['meta/llama-3.1-405b-instruct', 'mistralai/mixtral-8x22b-instruct-v0.1'], needsKey: true },
+            gemini: { label: '✦ Google Gemini', defaultModels: ['gemini-2.0-flash', 'gemini-1.5-pro'], needsKey: true },
+            openai: { label: '◎ OpenAI', defaultModels: ['gpt-4o', 'gpt-4o-mini'], needsKey: true },
+            groq: { label: '⚡ Groq (Fast)', defaultModels: ['llama-3.3-70b-versatile'], needsKey: true },
+            ollama: { label: '🖥 Ollama (Local)', defaultModels: ['llama3.2', 'qwen2.5-coder'], needsKey: false }
+        };
+
+        let currentProvider = 'gemini';
+        let currentModel = '';
+        let isConfigured = false;
+        let isStreaming = false;
+
+        // Elements
+        const chatContainer = document.getElementById('chat-container');
+        const emptyState = document.getElementById('empty-state');
+        const inputEl = document.getElementById('chat-input');
+        const sendBtn = document.getElementById('send-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const settingsOverlay = document.getElementById('settings-overlay');
+        const providerBadge = document.getElementById('provider-badge');
+        const setupHint = document.getElementById('setup-hint');
+
+        // State & initialization
+        let messages = [];
+        let currentAssistantMessageDiv = null;
+        let currentRawContent = '';
+        let currentThinkingDiv = null;
+        let currentThinkingRaw = '';
+
+        window.addEventListener('message', event => {
+            const msg = event.data;
+            switch (msg.type) {
+                case 'init':
+                    if (msg.config.provider && PROVIDERS[msg.config.provider]) {
+                        currentProvider = msg.config.provider;
+                        currentModel = msg.config.model;
+                        if (msg.config.hasKey || !PROVIDERS[currentProvider].needsKey) {
+                            setConfiguredState(true);
+                        }
+                    }
+                    renderSettings();
+                    break;
+                case 'modelsFetched':
+                    const select = document.getElementById('model-select');
+                    select.innerHTML = '';
+                    msg.models.forEach(m => {
+                        const opt = document.createElement('option');
+                        opt.value = m;
+                        opt.textContent = m;
+                        select.appendChild(opt);
+                    });
+                    if (msg.models.length > 0) currentModel = msg.models[0];
+                    break;
+                case 'token':
+                    collapseThinkingBlock();
+                    appendAssistantToken(msg.value);
+                    break;
+                case 'thinkingToken':
+                    appendThinkingToken(msg.value);
+                    break;
+                case 'error':
+                    appendSystemMessage('❌ Error: ' + msg.value);
+                    setStreamingState(false);
+                    break;
+                case 'stopStreaming':
+                    setStreamingState(false);
+                    collapseThinkingBlock();
+                    break;
+                case 'toolStart':
+                    collapseThinkingBlock();
+                    appendToolBlock(msg.name, msg.args, true);
+                    break;
+                case 'toolEnd':
+                    appendToolBlock(msg.name, msg.args, false, msg.result);
+                    break;
+            }
+        });
+
+        function toggleModeMenu(e) {
+            e?.stopPropagation();
+            const menu = document.getElementById('mode-menu');
+            menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
+        }
+
+        function selectMode(newMode) {
+            const btn = document.getElementById('mode-btn');
+            const icon = document.getElementById('mode-icon');
+            const label = document.getElementById('mode-label');
+            const options = document.querySelectorAll('.mode-option');
+
+            if (newMode === 'fast') {
+                btn.style.color = '#e5c07b';
+                label.innerText = 'Fast';
+                icon.setAttribute('data-lucide', 'zap');
+                options[0].style.backgroundColor = '#2a2d2e';
+                options[1].style.backgroundColor = 'transparent';
+                appendSystemMessage('Switched to Fast mode.');
+            } else {
+                btn.style.color = '#61afef';
+                label.innerText = 'Plan';
+                icon.setAttribute('data-lucide', 'map');
+                options[0].style.backgroundColor = 'transparent';
+                options[1].style.backgroundColor = '#2a2d2e';
+                appendSystemMessage('Switched to Plan mode. (Step-by-step reasoning)');
+            }
+
+            lucide.createIcons();
+            document.getElementById('mode-menu').style.display = 'none';
+            // In the future: vscode.postMessage({ type: 'setMode', mode: newMode });
+        }
+
+        // Close mode menu on outside click
+        document.addEventListener('click', (e) => {
+            const menu = document.getElementById('mode-menu');
+            if (menu && menu.style.display !== 'none' && !e.target.closest('#mode-btn')) {
+                menu.style.display = 'none';
+            }
+        });
+
+        // Setup UI
+        function toggleSettings(show) {
+            settingsOverlay.classList.toggle('show', show);
+            if (show) renderSettings();
+        }
+
+        function renderSettings() {
+            const pl = document.getElementById('provider-list');
+            pl.innerHTML = '';
+            for (const [key, p] of Object.entries(PROVIDERS)) {
+                const btn = document.createElement('div');
+                btn.className = `provider-btn ${key === currentProvider ? 'active' : ''}`;
+                btn.innerHTML = `${key === currentProvider ? '<i data-lucide="check" style="width:14px;color:var(--accent)"></i> ' : ''}${p.label}`;
+                btn.onclick = () => { currentProvider = key; renderSettings(); };
+                pl.appendChild(btn);
+            }
+            lucide.createIcons();
+
+            const models = PROVIDERS[currentProvider].defaultModels;
+            const select = document.getElementById('model-select');
+            if (select.options.length === 0 || !models.includes(select.value)) {
+                select.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join('');
+                if (!currentModel || !models.includes(currentModel)) currentModel = models[0];
+                select.value = currentModel;
+            }
+
+            document.getElementById('api-key-input').disabled = !PROVIDERS[currentProvider].needsKey;
+            document.getElementById('api-key-input').placeholder = PROVIDERS[currentProvider].needsKey ? 'Enter API Key' : 'No key needed';
+        }
+
+        function fetchModels() {
+            const key = document.getElementById('api-key-input').value;
+            vscode.postMessage({ type: 'fetchModels', provider: currentProvider, apiKey: key });
+        }
+
+        function applySettings() {
+            const key = document.getElementById('api-key-input').value;
+            const model = document.getElementById('model-select').value;
+            if (PROVIDERS[currentProvider].needsKey && !key && !isConfigured) {
+                alert('Please enter an API Key');
+                return;
+            }
+            currentModel = model;
+            vscode.postMessage({ type: 'setConfig', provider: currentProvider, model: currentModel, apiKey: key });
+            setConfiguredState(true);
+            toggleSettings(false);
+
+            appendSystemMessage(`Switched to ${PROVIDERS[currentProvider].label} · ${currentModel}`);
+            document.getElementById('api-key-input').value = ''; // clear from UI
+        }
+
+        function setConfiguredState(configured) {
+            isConfigured = configured;
+            if (configured) {
+                inputEl.disabled = false;
+                inputEl.placeholder = "Ask Cycy...";
+                providerBadge.classList.add('configured');
+                providerBadge.innerHTML = `<i data-lucide="settings" style="width:11px;height:11px;"></i> ${PROVIDERS[currentProvider].label.split(' ').slice(1).join(' ')}`;
+                setupHint.style.display = 'none';
+            } else {
+                inputEl.disabled = true;
+                inputEl.placeholder = "Configure a provider first →";
+                providerBadge.classList.remove('configured');
+                setupHint.style.display = 'block';
+            }
+            lucide.createIcons();
+        }
+
+        // Chat logic
+        function clearHistory() {
+            chatContainer.innerHTML = '';
+            chatContainer.appendChild(emptyState);
+            emptyState.style.display = 'flex';
+            vscode.postMessage({ type: 'clearHistory' });
+            currentAssistantMessageDiv = null;
+        }
+
+        inputEl.addEventListener('input', () => {
+            inputEl.style.height = '20px';
+            inputEl.style.height = Math.min(inputEl.scrollHeight, 160) + 'px';
+            if (inputEl.value.trim().length > 0) {
+                sendBtn.classList.add('active');
+            } else {
+                sendBtn.classList.remove('active');
+            }
+        });
+
+        inputEl.addEventListener('keydown', e => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        sendBtn.onclick = sendMessage;
+        stopBtn.onclick = () => vscode.postMessage({ type: 'stop' });
+
+        function sendMessage() {
+            const text = inputEl.value.trim();
+            if (!text || !isConfigured || isStreaming) return;
+
+            emptyState.style.display = 'none';
+            appendUserMessage(text);
+
+            inputEl.value = '';
+            inputEl.style.height = '20px';
+            sendBtn.classList.remove('active');
+
+            setStreamingState(true);
+            currentAssistantMessageDiv = null;
+            currentRawContent = '';
+            vscode.postMessage({ type: 'send', message: text });
+        }
+
+        function setStreamingState(streaming) {
+            isStreaming = streaming;
+            sendBtn.style.display = streaming ? 'none' : 'flex';
+            stopBtn.style.display = streaming ? 'flex' : 'none';
+
+            if (streaming) {
+                const indicator = document.createElement('div');
+                indicator.id = 'typing-indicator';
+                indicator.className = 'typing-indicator';
+                indicator.innerHTML = `<div class="typing-dots"><div></div><div></div><div></div></div> Thinking...`;
+                chatContainer.appendChild(indicator);
+                scrollToBottom();
+            } else {
+                const ind = document.getElementById('typing-indicator');
+                if (ind) ind.remove();
+            }
+        }
+
+        function appendUserMessage(text) {
+            const div = document.createElement('div');
+            div.className = 'message user';
+            div.innerHTML = `<div class="bubble-user">${text.replace(/\n/g, '<br/>')}</div>`;
+            chatContainer.appendChild(div);
+            scrollToBottom();
+        }
+
+        function appendSystemMessage(text) {
+            emptyState.style.display = 'none';
+            const div = document.createElement('div');
+            div.className = 'message system';
+            div.textContent = text;
+            chatContainer.appendChild(div);
+            scrollToBottom();
+        }
+
+        function appendToolBlock(name, args, isStart, result = '') {
+            collapseThinkingBlock();
+
+            const getToolLabel = (n, a) => {
+                const file = a?.TargetFile || a?.AbsolutePath || '';
+                const base = file ? file.split('/').pop() : '';
+                
+                switch(n) {
+                    case 'write_to_file': return `Writing \`${base}\``;
+                    case 'replace_file_content': return `Updating \`${base}\``;
+                    case 'multi_replace_file_content': return `Updating \`${base}\``;
+                    case 'view_file': return `Reading \`${base}\``;
+                    case 'view_code_item': return `Reading \`${a?.ItemName || base}\``;
+                    case 'list_dir': return `Listing \`${a?.DirectoryPath || './'}\``;
+                    case 'run_command': return `Running \`${a?.CommandLine || ''}\``;
+                    case 'find_by_name': return `Searching for \`${a?.Pattern || ''}\``;
+                    case 'grep_search': return `Searching codebase...`;
+                    default: return `Running \`${n}\``;
+                }
+            };
+
+            const label = getToolLabel(name, args);
+            const ind = document.getElementById('typing-indicator');
+            const parent = ind ? chatContainer.insertBefore(document.createElement('div'), ind) : chatContainer.appendChild(document.createElement('div'));
+
+            if (isStart) {
+                currentAssistantMessageDiv = null;
+                currentRawContent = '';
+
+                parent.className = 'message assistant';
+                parent.innerHTML = `
+                    <div class="tool-block" id="tool-${name}-${Date.now()}">
+                        <div class="spinner"></div> ${label}...
+                    </div>
+                `;
+            } else {
+                // Find existing tool blocks and update the last one matching the name
+                const blocks = document.querySelectorAll('.tool-block');
+                if (blocks.length > 0) {
+                    const last = blocks[blocks.length - 1];
+                    last.innerHTML = `<i data-lucide="check" style="width:14px;color:rgba(255,255,255,0.5)"></i> Completed ${label}`;
+                    lucide.createIcons();
+                }
+            }
+            scrollToBottom();
+        }
+
+        function appendThinkingToken(token) {
+            if (!currentThinkingDiv) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'thought-block';
+                wrapper.innerHTML = `
+                    <div class="thought-header" onclick="this.parentElement.classList.toggle('collapsed')">
+                        <span><i data-lucide="brain" style="width:10px;height:10px;margin-right:4px;"></i> Thinking</span>
+                        <i data-lucide="chevron-down" style="width:10px;height:10px;"></i>
+                    </div>
+                    <div class="thought-content"></div>
+                `;
+                
+                const ind = document.getElementById('typing-indicator');
+                if (ind) {
+                    chatContainer.insertBefore(wrapper, ind);
+                } else {
+                    chatContainer.appendChild(wrapper);
+                }
+                currentThinkingDiv = wrapper.querySelector('.thought-content');
+                currentThinkingRaw = '';
+                lucide.createIcons();
+            }
+
+            currentThinkingRaw += token;
+            currentThinkingDiv.innerText = currentThinkingRaw;
+            scrollToBottom();
+        }
+
+        function collapseThinkingBlock() {
+            if (currentThinkingDiv) {
+                const block = currentThinkingDiv.parentElement;
+                if (!block.classList.contains('collapsed')) {
+                    block.classList.add('collapsed');
+                }
+                currentThinkingDiv = null;
+                currentThinkingRaw = '';
+            }
+        }
+
+        function appendAssistantToken(token) {
+            if (!currentAssistantMessageDiv) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'message assistant';
+                wrapper.innerHTML = `
+                    <div class="bubble-assistant">
+                        <div class="assistant-header"><span class="assistant-name">CYCY</span></div>
+                        <div class="content"></div>
+                    </div>
+                `;
+
+                const ind = document.getElementById('typing-indicator');
+                if (ind) {
+                    chatContainer.insertBefore(wrapper, ind);
+                } else {
+                    chatContainer.appendChild(wrapper);
+                }
+                currentAssistantMessageDiv = wrapper.querySelector('.content');
+            }
+
+            currentRawContent += token;
+            currentAssistantMessageDiv.innerHTML = parseMarkdownSimple(currentRawContent);
+            scrollToBottom();
+        }
+
+        // Extremely basic markdown parser for visual fidelity
+        function parseMarkdownSimple(text) {
+            let html = text;
+            // escape html
+            html = html.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+            // code blocks
+            html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (match, lang, code) => {
+                let badge = lang ? `<div style="color: #888; font-size: 10px; margin-bottom: 6px; text-transform: uppercase;">${lang}</div>` : '';
+                return `<pre>${badge}<code>${code}</code></pre>`;
+            });
+
+            // inline code
+            html = html.replace(/`([^`]+)`/g, '<span class="inline-code">$1</span>');
+
+            // bold
+            html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+
+            // newlines
+            html = html.replace(/\n/g, '<br/>');
+
+            return html;
+        }
+
+        function scrollToBottom() {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // Notify extension we are ready
+        vscode.postMessage({ type: 'ready' });
+    </script>
+</body>
+
+</html>
