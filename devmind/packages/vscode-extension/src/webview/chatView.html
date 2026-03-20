@@ -598,6 +598,7 @@
         let currentRawContent = '';
         let currentThinkingDiv = null;
         let currentThinkingRaw = '';
+        let currentMode = 'fast';
 
         window.addEventListener('message', event => {
             const msg = event.data;
@@ -660,6 +661,7 @@
             const label = document.getElementById('mode-label');
             const options = document.querySelectorAll('.mode-option');
 
+            currentMode = newMode;
             if (newMode === 'fast') {
                 btn.style.color = '#e5c07b';
                 label.innerText = 'Fast';
@@ -678,7 +680,6 @@
 
             lucide.createIcons();
             document.getElementById('mode-menu').style.display = 'none';
-            // In the future: vscode.postMessage({ type: 'setMode', mode: newMode });
         }
 
         // Close mode menu on outside click
@@ -800,7 +801,7 @@
             setStreamingState(true);
             currentAssistantMessageDiv = null;
             currentRawContent = '';
-            vscode.postMessage({ type: 'send', message: text });
+            vscode.postMessage({ type: 'send', message: text, mode: currentMode });
         }
 
         function setStreamingState(streaming) {
@@ -879,6 +880,20 @@
                 if (blocks.length > 0) {
                     const last = blocks[blocks.length - 1];
                     last.innerHTML = `<i data-lucide="check" style="width:14px;color:rgba(255,255,255,0.5)"></i> Completed ${label}`;
+                    
+                    // Special case: Plan Mode approval
+                    if (currentMode === 'plan' && (args?.TargetFile === 'plan.md' || args?.TargetFile?.endsWith('/plan.md'))) {
+                        const approvalDiv = document.createElement('div');
+                        approvalDiv.style.marginTop = '8px';
+                        approvalDiv.style.display = 'flex';
+                        approvalDiv.style.gap = '8px';
+                        approvalDiv.innerHTML = `
+                            <button class="badge" style="background:#1d3a1d;border:1px solid #2d6a2d;color:#89d185;cursor:pointer" onclick="approvePlan()">Approve & Run</button>
+                            <button class="badge" style="cursor:pointer" onclick="addFeedback()">Add Notes</button>
+                        `;
+                        last.appendChild(approvalDiv);
+                    }
+                    
                     lucide.createIcons();
                 }
             }
@@ -977,7 +992,7 @@
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
-        // Notify extension we are ready
+        function approvePlan() { inputEl.value = "Approve. Please create task.md and proceed."; sendMessage(); } function addFeedback() { inputEl.value = "I have some feedback on the plan: "; inputEl.focus(); } lucide.createIcons(); // Notify extension we are ready
         vscode.postMessage({ type: 'ready' });
     </script>
 </body>

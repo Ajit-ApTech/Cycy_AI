@@ -37,19 +37,33 @@ exports.AIService = void 0;
 const vscode = __importStar(require("vscode"));
 const ToolExecutor_1 = require("../tools/ToolExecutor");
 class AIService {
-    get SYSTEM_PROMPT() {
+    getSystemPrompt(mode = 'fast') {
         const workspaceFolders = vscode.workspace.workspaceFolders;
         const workspacePath = workspaceFolders && workspaceFolders.length > 0 ? workspaceFolders[0].uri.fsPath : 'No workspace open';
-        return `You are Cycy AI, an elite agentic coding assistant integrated directly into VS Code (similar to Google Antigravity or GitHub Copilot).
+        let prompt = `You are Cycy AI, an elite agentic coding assistant integrated directly into VS Code (similar to Google Antigravity or GitHub Copilot).
 
 CURRENT WORKSPACE ROOT: ${workspacePath}
 You MUST restrict all your file reading, writing, and searching strictly to this workspace path. Do NOT attempt to read from or list root directories like '/' as it triggers OS permission errors.
 
 CRITICAL BEHAVIORAL RULES:
 1. USE TOOLS DIRECTLY: You have direct access to tools to read, write, edit files, and run terminal commands. Do NOT just print out code blocks for the user to copy-paste. You MUST use 'write_to_file' or 'replace_file_content' to apply the changes directly in the workspace.
-2. DO NOT REPEAT CODE IN CHAT: When you use a tool to create or modify a file, DO NOT print the file contents in the chat message. Simply tell the user what you did in plain English. Keep your chat extremely concise.
+2. DO NOT REPEAT CODE IN CHAT: When you use a tool to create or modify a file, DO NOT print the file contents in the chat message. Simply tell the user what you did in plain English. Keep your chat concise but comprehensive.
 3. FILE OVERWRITES: It is perfectly acceptable to overwrite or edit an existing file when you are asked to make changes to it. However, if the user explicitly asks to create a "new" file, ensure you generate a novel filename to avoid overwriting their old work. Use 'list_dir' or 'find_by_name' if you need to check existing file names first.
-4. EXPLAIN ACTIONS CONCISELY: Answer in 1-2 sentences. Example: "I have updated the logic in \`src/main.js\` to fix the bug."`;
+4. AGENTIC WORKFLOW: You are an autonomous agent. If a task requires multiple steps, use the tools chained together to finish the entire task.`;
+        if (mode === 'plan') {
+            prompt += `
+
+PLANNING MODE ENABLED:
+You are currently in Planning Mode. Your goal is to design a technical solution BEFORE taking any destructive actions.
+1. RESEARCH: Use 'list_dir', 'grep_search', and 'view_file' to understand the codebase.
+2. PLAN: Create a 'plan.md' file in the workspace root. It MUST include:
+   - ## Goal: What are we doing?
+   - ## Proposed Changes: Which files will be modified?
+   - ## User Feedback: A blank section where the user can add notes.
+3. STOP: After writing 'plan.md', explain that the plan is ready and wait for user approval.
+4. EXECUTE: Only after the user approves (e.g., says "Approve" or "/approve-plan"), you should create a 'task.md' checklist and then start the implementation.`;
+        }
+        return prompt;
     }
     constructor(settingsManager) {
         this.settingsManager = settingsManager;
@@ -114,7 +128,7 @@ CRITICAL BEHAVIORAL RULES:
             throw new Error('Failed to fetch models: ' + e.message);
         }
     }
-    async sendMessage(message) {
+    async sendMessage(message, mode = 'fast') {
         if (this._isStreaming)
             return;
         const provider = this.settingsManager.getProvider();
@@ -130,14 +144,11 @@ CRITICAL BEHAVIORAL RULES:
         // Push user message
         this._messageHistory.push({ role: 'user', content: message });
         try {
-            // Simplified LLM loop specifically for Gemini API to start (as default)
-            // (In a full implementation, we abstract providers using an SDK or generic OpenAI REST)
             if (provider === 'gemini') {
-                await this.streamGemini(model, apiKey, this._messageHistory);
+                await this.streamGemini(model, apiKey, this._messageHistory, mode);
             }
             else {
-                // OpenAI compatible stub
-                await this.streamOpenAI(provider, model, apiKey, this._messageHistory);
+                await this.streamOpenAI(provider, model, apiKey, this._messageHistory, mode);
             }
         }
         catch (e) {
@@ -151,14 +162,14 @@ CRITICAL BEHAVIORAL RULES:
             this._onStreamingComplete.fire();
         }
     }
-    async streamGemini(model, key, messages) {
+    async streamGemini(model, key, messages, mode = 'fast') {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?key=${key}&alt=sse`;
         const geminiMessages = messages.map(m => ({
             role: m.role === 'assistant' ? 'model' : m.role === 'tool' ? 'function' : 'user',
             parts: [{ text: m.content }] // Simplified for text-only history stub
         }));
         const body = {
-            systemInstruction: { parts: [{ text: this.SYSTEM_PROMPT }] },
+            systemInstruction: { parts: [{ text: this.getSystemPrompt(mode) }] },
             contents: geminiMessages,
             generationConfig: { temperature: 0.2 }
         };
@@ -203,17 +214,20 @@ CRITICAL BEHAVIORAL RULES:
             this._messageHistory.push({ role: 'tool', content: `Tool Result for ${pendingFunctionCall.name}:\n${result}` });
             // Recurse (Agentic Loop)
             if (!this._abortController?.signal.aborted) {
-                await this.streamGemini(model, key, this._messageHistory);
+                await this.streamGemini(model, key, this._messageHistory, mode);
             }
         }
     }
-    async streamOpenAI(provider, model, key, messages) {
+    async streamOpenAI(provider, model, key, messages, mode = 'fast') {
         const urls = {
             openai: 'https://api.openai.com/v1/chat/completions',
             groq: 'https://api.groq.com/openai/v1/chat/completions',
-            nvidia: 'https://integrate.api.nvidia.com/v1/chat/completions',
+            nvidia: 'https://integrate.api.nvidia.com/v1/models', // corrected to models prefix if needed, using chat/completions usually
             ollama: 'http://localhost:11434/v1/chat/completions'
         };
+        // Correcting common base paths if model names are used in URL for some providers like NVIDIA NIM
+        if (provider === 'nvidia')
+            urls.nvidia = 'https://integrate.api.nvidia.com/v1/chat/completions';
         const tools = this._toolExecutor.getToolSchemas().map(t => ({
             type: 'function',
             function: {
@@ -225,7 +239,7 @@ CRITICAL BEHAVIORAL RULES:
         const body = {
             model: model,
             messages: [
-                { role: 'system', content: this.SYSTEM_PROMPT },
+                { role: 'system', content: this.getSystemPrompt(mode) },
                 ...messages
             ],
             stream: true
@@ -298,7 +312,7 @@ CRITICAL BEHAVIORAL RULES:
             }
             // Recurse (Agentic Loop)
             if (!this._abortController?.signal.aborted) {
-                await this.streamOpenAI(provider, model, key, this._messageHistory);
+                await this.streamOpenAI(provider, model, key, this._messageHistory, mode);
             }
         }
     }

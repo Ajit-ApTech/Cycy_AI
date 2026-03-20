@@ -58,7 +58,7 @@ export class CycyChatViewProvider implements vscode.WebviewViewProvider {
         webviewView.webview.onDidReceiveMessage(async (data) => {
             switch (data.type) {
                 case 'send':
-                    this._aiService.sendMessage(data.message);
+                    this._aiService.sendMessage(data.message, data.mode);
                     break;
                 case 'stop':
                     this._aiService.stop();
