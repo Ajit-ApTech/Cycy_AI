@@ -1,0 +1,27 @@
+{
+  "backend": "NVIDIA NIM",
+  "model": "openai/gpt-oss-120b",
+  "started_at": "2026-02-22T02:38:14.311982",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Hi",
+      "timestamp": "2026-02-22T02:38:18.275259"
+    },
+    {
+      "role": "assistant",
+      "content": "Hey Ajit! 👋 How’s everything going? Anything I can help you with today—coding, project updates, or just a quick chat?",
+      "timestamp": "2026-02-22T02:38:19.788069"
+    },
+    {
+      "role": "user",
+      "content": "hi",
+      "timestamp": "2026-02-22T02:43:39.258416"
+    },
+    {
+      "role": "assistant",
+      "content": "Hey Ajit! 👋 How’s the *goingupdate* work coming along? Anything you’d like help with today—code tweaks, project ideas, or just a quick chat?",
+      "timestamp": "2026-02-22T02:43:40.420279"
+    }
+  ]
+}

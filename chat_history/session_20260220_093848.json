@@ -1,0 +1,27 @@
+{
+  "backend": "NVIDIA NIM",
+  "model": "deepseek-ai/deepseek-coder-6.7b-instruct",
+  "started_at": "2026-02-20T09:38:48.521496",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Hi",
+      "timestamp": "2026-02-20T09:38:51.460869"
+    },
+    {
+      "role": "assistant",
+      "content": "[API Error: Error code: 404 - {'status': 404, 'title': 'Not Found', 'detail': \"Function 'e503b15c-62b0-4d69-b532-a88f0bfa2656': Not found for account 'R7W1gk6MeH3T4dPCRwWcGXLGBbBVPZ-0T8j5hvFtNTA'\"}]",
+      "timestamp": "2026-02-20T09:38:52.376357"
+    },
+    {
+      "role": "user",
+      "content": "exot",
+      "timestamp": "2026-02-20T09:39:21.192929"
+    },
+    {
+      "role": "assistant",
+      "content": "[API Error: Error code: 404 - {'status': 404, 'title': 'Not Found', 'detail': \"Function 'e503b15c-62b0-4d69-b532-a88f0bfa2656': Not found for account 'R7W1gk6MeH3T4dPCRwWcGXLGBbBVPZ-0T8j5hvFtNTA'\"}]",
+      "timestamp": "2026-02-20T09:39:21.861298"
+    }
+  ]
+}

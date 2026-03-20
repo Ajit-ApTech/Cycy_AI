@@ -1,0 +1,47 @@
+> Task :compileJava UP-TO-DATE
+> Task :processResources UP-TO-DATE
+> Task :classes UP-TO-DATE
+> Task :resolveMainClassName UP-TO-DATE
+
+> Task :bootRun
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v3.4.2)
+
+2026-02-22T09:24:11.075+05:30  INFO 36285 --- [           main] c.d.s.SpringBackendApplication           : Starting SpringBackendApplication using Java 25.0.2 with PID 36285 (/Users/ajitprajapati/Projects/Cycy-Clone/goingupdate/devmind/packages/spring-backend/build/classes/java/main started by ajitprajapati in /Users/ajitprajapati/Projects/Cycy-Clone/goingupdate/devmind/packages/spring-backend)
+2026-02-22T09:24:11.076+05:30  INFO 36285 --- [           main] c.d.s.SpringBackendApplication           : No active profile set, falling back to 1 default profile: "default"
+2026-02-22T09:24:11.233+05:30  INFO 36285 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Neo4j repositories in DEFAULT mode.
+2026-02-22T09:24:11.269+05:30  INFO 36285 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 34 ms. Found 0 Neo4j repository interfaces.
+2026-02-22T09:24:11.271+05:30  INFO 36285 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Neo4j repositories in DEFAULT mode.
+2026-02-22T09:24:11.278+05:30  INFO 36285 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 5 ms. Found 2 Neo4j repository interfaces.
+WARNING: A restricted method in java.lang.System has been called
+WARNING: java.lang.System::load has been called by org.apache.tomcat.jni.Library in an unnamed module (file:/Users/ajitprajapati/.gradle/caches/modules-2/files-2.1/org.apache.tomcat.embed/tomcat-embed-core/10.1.34/f610f84be607fbc82e393cc220f0ad45f92afc91/tomcat-embed-core-10.1.34.jar)
+WARNING: Use --enable-native-access=ALL-UNNAMED to avoid a warning for callers in this module
+WARNING: Restricted methods will be blocked in a future release unless native access is enabled
+
+2026-02-22T09:24:11.421+05:30  INFO 36285 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8081 (http)
+2026-02-22T09:24:11.425+05:30  INFO 36285 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-02-22T09:24:11.426+05:30  INFO 36285 --- [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.34]
+2026-02-22T09:24:11.440+05:30  INFO 36285 --- [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-02-22T09:24:11.440+05:30  INFO 36285 --- [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 350 ms
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::allocateMemory has been called by io.netty.util.internal.PlatformDependent0$2 (file:/Users/ajitprajapati/.gradle/caches/modules-2/files-2.1/io.netty/netty-common/4.1.117.Final/9e074a4382f56b37f3b9ee1fc21d53e7af58ec9d/netty-common-4.1.117.Final.jar)
+WARNING: Please consider reporting this to the maintainers of class io.netty.util.internal.PlatformDependent0$2
+WARNING: sun.misc.Unsafe::allocateMemory will be removed in a future release
+2026-02-22T09:24:11.503+05:30  INFO 36285 --- [           main] o.neo4j.driver.internal.DriverFactory    : Direct driver instance 1806640599 created for server address localhost:7687
+2026-02-22T09:24:11.536+05:30  WARN 36285 --- [           main] o.s.d.n.c.mapping.Neo4jPersistentEntity  : The entity com.devmind.springbackend.model.CodeNode is using a Long value for storing internally generated Neo4j ids. The Neo4j internal Long Ids are deprecated, please consider using an external ID generator.
+2026-02-22T09:24:11.583+05:30  WARN 36285 --- [           main] .s.s.UserDetailsServiceAutoConfiguration : 
+
+Using generated security password: 66af101b-9afd-42c7-bc95-a1b3f4ffad54
+
+This generated password is for development use only. Your security configuration must be updated before running your application in production.
+
+2026-02-22T09:24:11.593+05:30  INFO 36285 --- [           main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with UserDetailsService bean with name inMemoryUserDetailsManager
+2026-02-22T09:24:11.715+05:30  INFO 36285 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 8081 (http) with context path '/'
+2026-02-22T09:24:11.718+05:30  INFO 36285 --- [           main] c.d.s.SpringBackendApplication           : Started SpringBackendApplication in 0.76 seconds (process running for 0.848)

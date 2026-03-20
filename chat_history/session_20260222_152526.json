@@ -1,0 +1,6 @@
+{
+  "backend": "NVIDIA NIM",
+  "model": "openai/gpt-oss-120b",
+  "started_at": "2026-02-22T15:25:26.325918",
+  "messages": []
+}

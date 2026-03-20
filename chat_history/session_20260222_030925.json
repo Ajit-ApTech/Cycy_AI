@@ -1,0 +1,17 @@
+{
+  "backend": "NVIDIA NIM",
+  "model": "01-ai/yi-large",
+  "started_at": "2026-02-22T03:09:25.649524",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Hi",
+      "timestamp": "2026-02-22T03:09:32.696382"
+    },
+    {
+      "role": "assistant",
+      "content": "[API Error: Error code: 404 - {'status': 404, 'title': 'Not Found', 'detail': \"Function '23bd454d-b225-49a3-8118-582a62fc51b8': Not found for account 'R7W1gk6MeH3T4dPCRwWcGXLGBbBVPZ-0T8j5hvFtNTA'\"}]",
+      "timestamp": "2026-02-22T03:09:33.311300"
+    }
+  ]
+}

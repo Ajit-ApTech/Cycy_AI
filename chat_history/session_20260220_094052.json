@@ -1,0 +1,17 @@
+{
+  "backend": "NVIDIA NIM",
+  "model": "openai/gpt-oss-120b",
+  "started_at": "2026-02-20T09:40:52.858497",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Hi",
+      "timestamp": "2026-02-20T09:40:56.576650"
+    },
+    {
+      "role": "assistant",
+      "content": "Hey there! 👋 How’s your day going? Let me know if there’s anything I can help you with today.",
+      "timestamp": "2026-02-20T09:40:58.085933"
+    }
+  ]
+}

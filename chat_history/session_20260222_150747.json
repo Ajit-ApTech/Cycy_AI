@@ -1,0 +1,27 @@
+{
+  "backend": "NVIDIA NIM",
+  "model": "openai/gpt-oss-120b",
+  "started_at": "2026-02-22T15:07:47.313194",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Hi",
+      "timestamp": "2026-02-22T15:07:50.653507"
+    },
+    {
+      "role": "assistant",
+      "content": "Hey Ajit! 👋 How can I help you today?",
+      "timestamp": "2026-02-22T15:07:51.894575"
+    },
+    {
+      "role": "user",
+      "content": "Create test_logic.py with a function for integers only and a string-call test",
+      "timestamp": "2026-02-22T15:08:44.608900"
+    },
+    {
+      "role": "assistant",
+      "content": "Here’s a ready‑to‑use **`test_logic.py`** you can drop into your current folder (`/Users/ajitprajapati/Projects/TEst for Cycy`).  \nIt defines a simple utility that only works with integers and includes a pytest test that deliberately calls it with a string to verify the proper error handling.\n\n```python\n# test_logic.py\nfrom __future__ import annotations\n\nfrom typing import Union\n\ndef square_int(value: int) -> int:\n    \"\"\"\n    Return the square of an integer.\n\n    Parameters\n    ----------\n    value : int\n        The integer to square.\n\n    Returns\n    -------\n    int\n        The squared result.\n\n    Raises\n    ------\n    TypeError\n        If ``value`` is not an ``int``.\n    \"\"\"\n    if not isinstance(value, int):\n        raise TypeError(f\"Expected int, got {type(value).__name__}\")\n    return value * value\n\n\n# ----------------------------------------------------------------------\n# Pytest test suite\n# ----------------------------------------------------------------------\ndef test_square_int_with_int():\n    \"\"\"Basic sanity check – works for a normal integer.\"\"\"\n    assert square_int(5) == 25\n    assert square_int(-3) == 9\n    assert square_int(0) == 0\n\n\ndef test_square_int_with_string():\n    \"\"\"\n    Verify that passing a non‑int (e.g., a string) raises the expected\n    ``TypeError``. This is the “string‑call” test you asked for.\n    \"\"\"\n    import pytest\n\n    with pytest.raises(TypeError) as excinfo:\n        square_int(\"not-an-int\")\n\n    # Optional: make sure the error message mentions the wrong type\n    assert \"Expected int\" in str(excinfo.value)\n```\n\n### How to use it\n\n1. **Save the file**  \n   Copy the snippet above into a new file named `test_logic.py` inside the directory you’re working in.\n\n2. **Run the tests** (assuming you have `pytest` installed):\n\n   ```bash\n   cd \"/Users/ajitprajapati/Projects/TEst for Cycy\"\n   pytest -q test_logic.py\n   ```\n\n   You should see two passing tests:\n\n   ```\n   ..                                                                      [100%]\n   2 passed in X.XXs\n   ```\n\n3. **Add more tests** as needed – just follow the same pattern (`def test_…` functions) and use `pytest.raises` for any error‑handling checks.\n\nFeel free to tweak the `square_int` implementation or add additional functions; the test layout will stay the same. Let me know if you’d like help expanding the suite or integrating it into a larger test run!",
+      "timestamp": "2026-02-22T15:08:50.960503"
+    }
+  ]
+}

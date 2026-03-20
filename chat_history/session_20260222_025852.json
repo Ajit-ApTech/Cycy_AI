@@ -1,0 +1,17 @@
+{
+  "backend": "Gemini",
+  "model": "gemini-2.5-pro",
+  "started_at": "2026-02-22T02:58:52.704540",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Hi",
+      "timestamp": "2026-02-22T02:58:55.804353"
+    },
+    {
+      "role": "assistant",
+      "content": "[API Error: \n  No API_KEY or ADC found. Please either:\n    - Set the `GOOGLE_API_KEY` environment variable.\n    - Manually pass the key with `genai.configure(api_key=my_api_key)`.\n    - Or set up Application Default Credentials, see https://ai.google.dev/gemini-api/docs/oauth for more information.]",
+      "timestamp": "2026-02-22T02:59:04.785217"
+    }
+  ]
+}

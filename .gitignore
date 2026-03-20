@@ -1,0 +1,22 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+.mypy_cache/
+
+# Node
+node_modules/
+.turbo/
+dist/
+release/
+
+# OS
+.DS_Store
+
+# Environment
+.env
+
+# Build
+build/
+dist-python/
+cycy-ai.spec

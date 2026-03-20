@@ -1,0 +1,67 @@
+export const IPC_CHANNELS = {
+    CHAT: {
+        START: 'chat:start',
+        SEND: 'chat:send',
+        TOKEN: 'chat:token',
+        ERROR: 'chat:error',
+        STOP: 'chat:stop',
+        SET_CONFIG: 'chat:setConfig',
+        SET_CWD: 'chat:setCwd',
+        SELECT_FILE: 'chat:selectFile',
+        FETCH_MODELS: 'chat:fetchModels',
+    },
+    FILE: {
+        READ: 'file:read',
+        WRITE: 'file:write',
+        TREE: 'file:tree',
+        WATCH: 'file:watch',
+    },
+    TERMINAL: {
+        CREATE: 'terminal:create',
+        INPUT: 'terminal:input',
+        OUTPUT: 'terminal:output',
+        RESIZE: 'terminal:resize',
+        KILL: 'terminal:kill',
+        SET_CWD: 'terminal:setCwd',
+    },
+    AGENT: {
+        RUN: 'agent:run',
+        STATUS: 'agent:status',
+        APPROVE: 'agent:approve',
+        CANCEL: 'agent:cancel',
+    },
+    DATABASE: {
+        SAVE_MESSAGE: 'database:saveMessage',
+        GET_MESSAGES: 'database:getMessages',
+        SAVE_SETTING: 'database:saveSetting',
+        GET_SETTING: 'database:getSetting',
+    },
+    FOLDER: {
+        OPEN_PICKER: 'folder:openPicker',
+        READ_DIR: 'folder:readDir',
+        READ_FILE: 'folder:readFile',
+    },
+    BACKEND: {
+        STATUS: 'backend:status',
+        RELAUNCH: 'backend:relaunch',
+        ERROR: 'backend:error',
+    },
+    BROWSER: {
+        LAUNCH: 'browser:launch',
+        NAVIGATE: 'browser:navigate',
+        SCREENSHOT: 'browser:screenshot',
+        CLOSE: 'browser:close',
+    },
+    LINT: {
+        FILE: 'lint:file',
+        TEXT: 'lint:text',
+    },
+    GIT: {
+        STATUS: 'git:status',
+        LOG: 'git:log',
+        COMMIT: 'git:commit',
+        PUSH: 'git:push',
+        PULL: 'git:pull',
+        REMOTE: 'git:remote',
+    },
+} as const;

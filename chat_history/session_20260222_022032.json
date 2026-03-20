@@ -1,0 +1,17 @@
+{
+  "backend": "NVIDIA NIM",
+  "model": "deepseek-ai/deepseek-v3.2",
+  "started_at": "2026-02-22T02:20:32.663478",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Hi",
+      "timestamp": "2026-02-22T02:20:47.001179"
+    },
+    {
+      "role": "assistant",
+      "content": "Hi! 👋 Nice to see you here in `/Users/ajitprajapati/Projects/AI agent`.  \nHow can I help you today? Are you working on something specific with AI agents?",
+      "timestamp": "2026-02-22T02:21:30.100880"
+    }
+  ]
+}

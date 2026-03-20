@@ -1,0 +1,12 @@
+{
+  "backend": "Gemini",
+  "model": "openai/gpt-oss-120b",
+  "started_at": "2026-02-21T22:47:57.149188",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Hi",
+      "timestamp": "2026-02-21T22:48:00.037297"
+    }
+  ]
+}

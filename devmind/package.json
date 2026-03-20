@@ -1,0 +1,16 @@
+{
+  "name": "devmind",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "dependencies": {
+    "turbo": "^1.13.0"
+  },
+  "packageManager": "npm@10.8.2"
+}

@@ -1,0 +1,17 @@
+{
+  "backend": "OpenAI",
+  "model": "gpt-4o",
+  "started_at": "2026-02-22T01:25:33.810226",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Hi",
+      "timestamp": "2026-02-22T01:25:37.946186"
+    },
+    {
+      "role": "assistant",
+      "content": "[API Error: Error code: 429 - {'error': {'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}]",
+      "timestamp": "2026-02-22T01:25:42.639998"
+    }
+  ]
+}

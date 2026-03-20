@@ -1,0 +1,12 @@
+{
+  "backend": "NVIDIA NIM",
+  "model": "deepseek-ai/deepseek-coder-6.7b-instruct",
+  "started_at": "2026-02-22T16:07:59.712899",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Hi",
+      "timestamp": "2026-02-22T16:08:02.692119"
+    }
+  ]
+}

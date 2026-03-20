@@ -1,0 +1,17 @@
+{
+  "backend": "NVIDIA NIM",
+  "model": "deepseek-ai/deepseek-v3.1",
+  "started_at": "2026-02-21T23:27:28.907567",
+  "messages": [
+    {
+      "role": "user",
+      "content": "hi",
+      "timestamp": "2026-02-21T23:27:39.772824"
+    },
+    {
+      "role": "assistant",
+      "content": "Hello! Nice to meet you. How can I help you today?",
+      "timestamp": "2026-02-21T23:27:42.018264"
+    }
+  ]
+}

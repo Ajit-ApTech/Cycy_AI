@@ -1,0 +1,12 @@
+{
+  "backend": "Gemini",
+  "model": "qwen/qwen3-coder-480b-a35b-instruct",
+  "started_at": "2026-02-21T22:48:40.434281",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Hi",
+      "timestamp": "2026-02-21T22:48:42.845385"
+    }
+  ]
+}
