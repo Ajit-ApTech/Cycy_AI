@@ -49,19 +49,20 @@ CRITICAL BEHAVIORAL RULES:
 1. USE TOOLS DIRECTLY: You have direct access to tools to read, write, edit files, and run terminal commands. Do NOT just print out code blocks for the user to copy-paste. You MUST use 'write_to_file' or 'replace_file_content' to apply the changes directly in the workspace.
 2. DO NOT REPEAT CODE IN CHAT: When you use a tool to create or modify a file, DO NOT print the file contents in the chat message. Simply tell the user what you did in plain English. Keep your chat concise but comprehensive.
 3. FILE OVERWRITES: It is perfectly acceptable to overwrite or edit an existing file when you are asked to make changes to it. However, if the user explicitly asks to create a "new" file, ensure you generate a novel filename to avoid overwriting their old work. Use 'list_dir' or 'find_by_name' if you need to check existing file names first.
-4. AGENTIC WORKFLOW: You are an autonomous agent. If a task requires multiple steps, use the tools chained together to finish the entire task.`;
+4. AGENTIC WORKFLOW: You are an autonomous agent. If a task requires multiple steps, use the tools chained together to finish the entire task.
+5. THINKING: Always show your step-by-step reasoning before taking any action. You MUST wrap your reasoning inside <think> and </think> tags.`;
         if (mode === 'plan') {
             prompt += `
 
 PLANNING MODE ENABLED:
 You are currently in Planning Mode. Your goal is to design a technical solution BEFORE taking any destructive actions.
 1. RESEARCH: Use 'list_dir', 'grep_search', and 'view_file' to understand the codebase.
-2. PLAN: Create a 'plan.md' file in the workspace root. It MUST include:
+2. PLAN: You MUST use the 'write_to_file' tool to create a file named 'plan.md' in the workspace root containing your proposed plan. Do NOT just print the plan in the chat. The 'plan.md' file MUST include:
    - ## Goal: What are we doing?
    - ## Proposed Changes: Which files will be modified?
    - ## User Feedback: A blank section where the user can add notes.
-3. STOP: After writing 'plan.md', explain that the plan is ready and wait for user approval.
-4. EXECUTE: Only after the user approves (e.g., says "Approve" or "/approve-plan"), you should create a 'task.md' checklist and then start the implementation.`;
+3. STOP: After using the 'write_to_file' tool to write 'plan.md', explain that the plan is ready and wait for user approval.
+4. EXECUTE: Only after the user approves (e.g., says "Approve" or "/approve-plan"), you should start the implementation.`;
         }
         return prompt;
     }
@@ -282,19 +283,12 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
         }, this._abortController?.signal);
         // Loop to execute tools if requested (Agentic Loop)
         if (pendingToolCalls.size > 0 && !this._abortController?.signal.aborted) {
-            const toolCallsMsg = { role: 'assistant', content: null, tool_calls: [] };
-            for (const [_, call] of pendingToolCalls.entries()) {
-                toolCallsMsg.tool_calls.push({
-                    id: call.id,
-                    type: 'function',
-                    function: { name: call.name, arguments: call.arguments }
-                });
-            }
-            this._messageHistory.push(toolCallsMsg);
+            const toolResults = [];
+            // Execute all tools and collect results
             for (const [_, call] of pendingToolCalls.entries()) {
                 let args;
                 try {
-                    args = JSON.parse(call.arguments);
+                    args = JSON.parse(call.arguments || '{}');
                 }
                 catch (e) {
                     args = {}; // fallback if broken JSON
@@ -303,12 +297,37 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
                 // Execute
                 const result = await this._toolExecutor.executeTool(call.name, args);
                 this._onToolExecutionEnd.fire({ name: call.name, args, result });
+                // Truncate very large results to avoid exceeding API limits
+                const truncatedResult = typeof result === 'string' && result.length > 8000
+                    ? result.substring(0, 8000) + '\n...(truncated)'
+                    : String(result);
+                toolResults.push({ name: call.name, result: truncatedResult, parsedArgs: args });
+            }
+            // Always use native OpenAI format for all providers that support streamOpenAI
+            // Push the assistant tool_calls message once
+            const toolCallsMsg = { role: 'assistant', content: '', tool_calls: [] };
+            let i = 0;
+            for (const [_, c] of pendingToolCalls.entries()) {
+                toolCallsMsg.tool_calls.push({
+                    id: c.id,
+                    type: 'function',
+                    // CRITICAL: Ensure arguments is a rigorously valid JSON string, 
+                    // otherwise strict servers like NVIDIA NIM will throw a 400 error on the next request 
+                    function: { name: c.name, arguments: JSON.stringify(toolResults[i].parsedArgs) }
+                });
+                i++;
+            }
+            this._messageHistory.push(toolCallsMsg);
+            // Push individual tool result messages
+            let j = 0;
+            for (const [_, call] of pendingToolCalls.entries()) {
                 this._messageHistory.push({
                     role: 'tool',
                     tool_call_id: call.id,
                     name: call.name,
-                    content: result
+                    content: toolResults[j].result
                 });
+                j++;
             }
             // Recurse (Agentic Loop)
             if (!this._abortController?.signal.aborted) {
@@ -323,6 +342,9 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
         let buffer = '';
         if (!reader)
             return;
+        let isThinking = false;
+        let cumulativeContent = '';
+        let processedLength = 0;
         while (true) {
             if (signal?.aborted) {
                 reader.cancel();
@@ -345,7 +367,19 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
                         if (parts && parts.length > 0) {
                             for (const part of parts) {
                                 if (part.text) {
-                                    onToken(part.text);
+                                    // Process the part text for thinking tags
+                                    const result = this.parseThinkingTags(part.text, isThinking, cumulativeContent, processedLength);
+                                    isThinking = result.isThinking;
+                                    cumulativeContent = result.cumulativeContent;
+                                    processedLength = result.processedLength;
+                                    if (result.tokens.length > 0) {
+                                        for (const t of result.tokens) {
+                                            if (t.type === 'thought')
+                                                this._onThinkingToken.fire(t.text);
+                                            else
+                                                onToken(t.text);
+                                        }
+                                    }
                                 }
                                 if (part.thought) {
                                     this._onThinkingToken.fire(part.thought);
@@ -360,6 +394,8 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
                 }
             }
         }
+        // Final flush
+        this.flushThinkingTags(onToken, isThinking, cumulativeContent, processedLength);
     }
     async readSSEStreamOpenAI(response, onToken, signal) {
         const reader = response.body?.getReader();
@@ -367,6 +403,9 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
         let buffer = '';
         if (!reader)
             return;
+        let isThinking = false;
+        let cumulativeContent = '';
+        let processedLength = 0;
         while (true) {
             if (signal?.aborted) {
                 reader.cancel();
@@ -380,14 +419,25 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
             buffer = lines.pop() || '';
             for (const line of lines) {
                 if (line.startsWith('data: ')) {
-                    const data = line.slice(6);
-                    if (data.trim() === '[DONE]')
+                    const data = line.slice(6).trim();
+                    if (data === '[DONE]')
                         continue;
                     try {
                         const parsed = JSON.parse(data);
                         const delta = parsed.choices?.[0]?.delta;
                         if (delta?.content) {
-                            onToken(delta.content);
+                            const result = this.parseThinkingTags(delta.content, isThinking, cumulativeContent, processedLength);
+                            isThinking = result.isThinking;
+                            cumulativeContent = result.cumulativeContent;
+                            processedLength = result.processedLength;
+                            for (const t of result.tokens) {
+                                if (t.type === 'thought') {
+                                    this._onThinkingToken.fire(t.text);
+                                }
+                                else {
+                                    onToken(t.text);
+                                }
+                            }
                         }
                         if (delta?.reasoning_content) {
                             this._onThinkingToken.fire(delta.reasoning_content);
@@ -400,6 +450,84 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
                     }
                     catch (e) { }
                 }
+            }
+        }
+        // Final flush
+        this.flushThinkingTags(onToken, isThinking, cumulativeContent, processedLength);
+    }
+    parseThinkingTags(newText, isThinking, cumulativeContent, processedLength) {
+        cumulativeContent += newText;
+        const tokens = [];
+        const THINK_START = '<think>';
+        const THINK_END = '</think>';
+        while (true) {
+            if (!isThinking) {
+                const lower = cumulativeContent.toLowerCase();
+                const startIdx = lower.indexOf(THINK_START, processedLength);
+                if (startIdx !== -1) {
+                    // Everything before <think> is text
+                    const before = cumulativeContent.substring(processedLength, startIdx);
+                    if (before)
+                        tokens.push({ type: 'text', text: before });
+                    isThinking = true;
+                    processedLength = startIdx + THINK_START.length;
+                }
+                else {
+                    // No full <think> tag found. Check for partial tag at the end.
+                    const lastOpen = cumulativeContent.lastIndexOf('<');
+                    let safeEnd = cumulativeContent.length;
+                    if (lastOpen >= processedLength) {
+                        const tail = lower.substring(lastOpen);
+                        if (THINK_START.startsWith(tail)) {
+                            safeEnd = lastOpen;
+                        }
+                    }
+                    if (safeEnd > processedLength) {
+                        tokens.push({ type: 'text', text: cumulativeContent.substring(processedLength, safeEnd) });
+                        processedLength = safeEnd;
+                    }
+                    break;
+                }
+            }
+            else {
+                const lower = cumulativeContent.toLowerCase();
+                const endIdx = lower.indexOf(THINK_END, processedLength);
+                if (endIdx !== -1) {
+                    // Everything before </think> is thought
+                    const thought = cumulativeContent.substring(processedLength, endIdx);
+                    if (thought)
+                        tokens.push({ type: 'thought', text: thought });
+                    isThinking = false;
+                    processedLength = endIdx + THINK_END.length;
+                }
+                else {
+                    // No full </think> tag found. Check for partial tag at the end.
+                    const lastOpen = cumulativeContent.lastIndexOf('<');
+                    let safeEnd = cumulativeContent.length;
+                    if (lastOpen >= processedLength) {
+                        const tail = lower.substring(lastOpen);
+                        if (THINK_END.startsWith(tail)) {
+                            safeEnd = lastOpen;
+                        }
+                    }
+                    if (safeEnd > processedLength) {
+                        tokens.push({ type: 'thought', text: cumulativeContent.substring(processedLength, safeEnd) });
+                        processedLength = safeEnd;
+                    }
+                    break;
+                }
+            }
+        }
+        return { isThinking, cumulativeContent, processedLength, tokens };
+    }
+    flushThinkingTags(onToken, isThinking, cumulativeContent, processedLength) {
+        if (processedLength < cumulativeContent.length) {
+            const remaining = cumulativeContent.substring(processedLength);
+            if (isThinking) {
+                this._onThinkingToken.fire(remaining);
+            }
+            else {
+                onToken(remaining);
             }
         }
     }

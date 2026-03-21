@@ -5,22 +5,32 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cycy AI</title>
-    <!-- Include basic icons (Lucide via CDN or simple SVGs) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         :root {
-            --bg-color: #121212;
-            --panel-bg: #1e1e1e;
-            --border-color: #2a2a2a;
-            --text-main: #ccc;
-            --text-muted: #888;
-            --accent: #0e639c;
-            --accent-hover: #1177bb;
-            --user-bubble: linear-gradient(135deg, #0e639c 0%, #007acc 100%);
+            --bg-color: #0d0d0d;
+            --panel-bg: rgba(26, 26, 26, 0.85); /* For glassmorphism */
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-main: #e0e0e0;
+            --text-muted: #8a8a8a;
+            --accent: #3b82f6; /* Modern blue */
+            --accent-glow: rgba(59, 130, 246, 0.5);
+            --user-bubble: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
             --ai-bubble: transparent;
-            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            --code-bg: #1a1a1a;
-            --code-border: #333;
+            --font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --heading-font: 'Outfit', sans-serif;
+            --code-bg: #141414;
+            --code-border: #262626;
+            --glass-bg: rgba(20, 20, 20, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        html {
+            height: 100vh;
+            overflow: hidden;
         }
 
         body {
@@ -33,82 +43,110 @@
             flex-direction: column;
             height: 100vh;
             overflow: hidden;
+            background-image: 
+                radial-gradient(circle at 0% 0%, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 100% 100%, rgba(139, 92, 246, 0.05) 0%, transparent 50%);
         }
 
         /* Header */
         .header {
-            padding: 9px 12px;
+            padding: 12px 16px;
             border-bottom: 1px solid var(--border-color);
             display: flex;
             align-items: center;
             justify-content: space-between;
             flex-shrink: 0;
-            background-color: var(--bg-color);
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            z-index: 10;
         }
 
         .header-left {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
         }
 
         .app-title {
-            font-size: 13px;
-            font-weight: 600;
-            color: #e0e0e0;
-            margin-right: 8px;
+            font-family: var(--heading-font);
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            background: linear-gradient(to right, #fff, #999);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
         .badge {
             display: flex;
             align-items: center;
-            gap: 4px;
-            background: #2d2d2d;
-            border: 1px solid #3d3d3d;
-            border-radius: 12px;
-            padding: 3px 9px;
+            gap: 5px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 4px 10px;
             font-size: 11px;
+            font-weight: 500;
             cursor: pointer;
-            color: #e5c07b;
+            color: #ccc;
+            transition: all 0.2s;
         }
 
-        .badge-provider {
-            background: #2a2222;
-            border: 1px solid #5a3333;
-            color: #f44747;
+        .badge:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
         }
 
         .badge-provider.configured {
-            background: #1d3a1d;
-            border: 1px solid #2d6a2d;
-            color: #89d185;
+            background: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.2);
+            color: #10b981;
         }
 
         .icon-btn {
             background: none;
             border: none;
-            color: #555;
+            color: var(--text-muted);
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 4px;
-            border-radius: 4px;
+            padding: 6px;
+            border-radius: 8px;
+            transition: all 0.2s;
         }
 
         .icon-btn:hover {
-            color: #f44747;
-            background: rgba(255, 255, 255, 0.05);
+            color: #ef4444;
+            background: rgba(239, 68, 68, 0.1);
         }
 
         /* Chat Area */
         .chat-area {
-            flex: 1;
-            overflow-y: auto;
-            padding: 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
+            flex: 1 1 0;
+            min-height: 0;
+            overflow-y: scroll;
+            -webkit-overflow-scrolling: touch;
+            padding: 12px 14px;
+        }
+
+        .chat-area::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-area::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .chat-area::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 4px;
+        }
+
+        .chat-area::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.25);
         }
 
         .empty-state {
@@ -117,354 +155,444 @@
             align-items: center;
             justify-content: center;
             height: 100%;
-            color: #555;
-            gap: 10px;
+            color: var(--text-muted);
+            gap: 16px;
             text-align: center;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        .empty-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            box-shadow: 0 8px 16px rgba(59, 130, 246, 0.3);
+            margin-bottom: 8px;
         }
 
         /* Messages */
         .message {
             display: flex;
             flex-direction: column;
+            margin-bottom: 6px;
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
 
         .message.user {
             align-items: flex-end;
         }
 
-        .message.assistant {
-            align-items: flex-start;
-        }
-
-        .message.system {
-            align-items: center;
-            font-size: 11px;
-            color: #888;
-            font-style: italic;
-            margin-bottom: 8px;
-        }
-
         .bubble-user {
             background: var(--user-bubble);
             color: #fff;
             padding: 10px 14px;
-            border-radius: 16px 16px 4px 16px;
+            border-radius: 18px 18px 4px 18px;
             max-width: 85%;
-            font-size: 13px;
+            font-size: 14px;
             line-height: 1.5;
             word-wrap: break-word;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.2);
         }
 
         .bubble-assistant {
+            width: 100%;
             max-width: 100%;
-            font-size: 13px;
+            font-size: 14px;
             line-height: 1.6;
-            color: #d4d4d4;
+            color: var(--text-main);
         }
 
         .assistant-header {
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
             margin-bottom: 4px;
         }
 
+        .assistant-avatar {
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d1b2e 40%, #4a1942 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 13px;
+            font-weight: bold;
+            box-shadow: 0 2px 8px rgba(74, 25, 66, 0.4);
+        }
+
         .assistant-name {
+            font-family: var(--heading-font);
             font-size: 11px;
-            color: #555;
+            color: var(--text-muted);
             font-weight: 600;
             text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
 
         /* Markdown Parsing Styles */
         pre {
             background: var(--code-bg);
-            border-radius: 6px;
-            padding: 10px 12px;
-            margin: 6px 0;
-            font-size: 12px;
+            border-radius: 10px;
+            padding: 12px;
+            margin: 12px 0;
+            font-size: 13px;
             overflow-x: auto;
             border: 1px solid var(--code-border);
-            font-family: monospace;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            position: relative;
         }
 
         code {
-            font-family: monospace;
-            color: #abb2bf;
+            font-family: inherit;
         }
 
         .inline-code {
-            background: #2d2d2d;
-            padding: 2px 4px;
-            border-radius: 3px;
-            font-size: 12px;
+            background: rgba(255, 255, 255, 0.08);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-family: monospace;
+            color: #ec4899; /* pinkish for visibility */
         }
 
+        /* Thinking UI */
         .thought-block {
-            background: #252526;
-            border-left: 2px solid var(--accent);
-            padding: 8px 12px;
-            margin: 8px 0;
-            font-size: 12px;
-            color: #888;
-            border-radius: 0 4px 4px 0;
-            line-height: 1.4;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
+            background: rgba(244, 114, 182, 0.04);
+            border: 1px solid rgba(244, 114, 182, 0.15);
+            border-radius: 12px;
+            margin: 6px 0;
+            overflow: visible;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .thought-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
+            padding: 8px 12px;
             cursor: pointer;
             user-select: none;
-            font-size: 10px;
-            color: var(--accent);
+            background: linear-gradient(135deg, rgba(244, 114, 182, 0.08) 0%, rgba(168, 85, 247, 0.08) 100%);
+            transition: background 0.2s;
+        }
+
+        .thought-header:hover {
+            background: linear-gradient(135deg, rgba(244, 114, 182, 0.14) 0%, rgba(168, 85, 247, 0.14) 100%);
+        }
+
+        .thought-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
             font-weight: 600;
-            text-transform: uppercase;
+            color: #f9a8d4;
+        }
+
+        .thought-title i {
+            color: #f472b6;
         }
 
         .thought-content {
+            padding: 10px 14px;
+            font-size: 12px;
+            color: var(--text-muted);
+            line-height: 1.5;
             white-space: pre-wrap;
-            overflow: hidden;
-            transition: max-height 0.3s ease-out;
+            border-top: 1px solid rgba(244, 114, 182, 0.1);
+            background: rgba(0, 0, 0, 0.15);
+            max-height: 40vh;
+            overflow-y: auto;
+        }
+
+        .thought-content::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .thought-content::-webkit-scrollbar-thumb {
+            background: rgba(244, 114, 182, 0.3);
+            border-radius: 4px;
         }
 
         .thought-block.collapsed .thought-content {
             display: none;
         }
 
-        .thought-block.collapsed {
-            opacity: 0.6;
-            padding: 4px 12px;
+        .thought-block.collapsed .chevron {
+            transform: rotate(-90deg);
+        }
+
+        .chevron {
+            transition: transform 0.3s;
+            color: #f9a8d4;
         }
 
         .tool-block {
-            background: #1e1e1e;
-            border: 1px solid #333;
-            border-radius: 6px;
-            padding: 8px 10px;
-            margin: 8px 0;
-            font-size: 11px;
-            color: #aaa;
+            background: var(--code-bg);
+            border: 1px solid var(--code-border);
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin: 6px 0;
+            font-size: 12px;
+            color: var(--text-muted);
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
 
         .spinner {
-            width: 12px;
-            height: 12px;
-            border: 2px solid #555;
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
             border-top-color: var(--accent);
             border-radius: 50%;
-            animation: spin 1s linear infinite;
+            animation: spin 0.8s linear infinite;
         }
 
         /* Input Area */
         .input-area {
             border-top: 1px solid var(--border-color);
-            padding: 10px;
+            padding: 16px;
             flex-shrink: 0;
-            background: var(--bg-color);
+            background: var(--panel-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
         }
 
-        .input-box {
+        .input-wrapper {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 8px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .input-wrapper:focus-within,
+        .input-wrapper.focused {
+            border-color: rgba(59, 130, 246, 0.4);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.05);
+        }
+
+        .input-row {
             display: flex;
             align-items: flex-end;
-            gap: 8px;
-            background: #2d2d2d;
-            border-radius: 10px;
-            border: 1px solid #3d3d3d;
-            padding: 6px 8px;
+            gap: 10px;
         }
 
         textarea {
             flex: 1;
             background: transparent;
             border: none;
-            color: #d4d4d4;
+            color: var(--text-main);
             resize: none;
             outline: none;
-            font-size: 13px;
+            font-size: 14px;
             line-height: 1.5;
-            min-height: 20px;
-            max-height: 160px;
+            min-height: 24px;
+            max-height: 200px;
             font-family: inherit;
-            padding: 2px 0;
-            overflow-y: hidden;
+            padding: 4px 0;
+        }
+
+        .action-btns {
+            display: flex;
+            gap: 8px;
+        }
+
+        .send-btn, .stop-btn {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
         }
 
         .send-btn {
-            background: #2a2a2a;
-            border: none;
-            border-radius: 6px;
-            padding: 6px;
-            color: #555;
-            cursor: default;
-            display: flex;
-            transition: background 0.15s;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-muted);
         }
 
         .send-btn.active {
             background: var(--accent);
             color: white;
-            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
         }
 
         .stop-btn {
-            background: #c0392b;
-            border: none;
-            border-radius: 6px;
-            padding: 6px;
+            background: #ef4444;
             color: white;
-            cursor: pointer;
-            display: flex;
+        }
+
+        .shortcut-hint {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-align: right;
+            margin-top: 6px;
         }
 
         /* Settings Overlay */
         .settings-overlay {
             position: absolute;
             inset: 0;
-            background: var(--panel-bg);
-            z-index: 20;
+            background: rgba(13, 13, 13, 0.95);
+            backdrop-filter: blur(10px);
+            z-index: 100;
             display: none;
             flex-direction: column;
-            padding: 16px;
-            gap: 12px;
+            padding: 24px;
+            gap: 20px;
             overflow-y: auto;
+            animation: fadeIn 0.3s ease-out;
         }
 
         .settings-overlay.show {
             display: flex;
         }
 
-        .settings-title {
+        .settings-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-weight: 600;
-            font-size: 14px;
-            color: #e0e0e0;
+        }
+
+        .settings-header h2 {
+            margin: 0;
+            font-family: var(--heading-font);
+            font-size: 18px;
+        }
+
+        .settings-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
         }
 
         .settings-label {
             font-size: 11px;
-            color: #888;
+            font-weight: 600;
+            color: var(--text-muted);
             text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 6px;
-            display: block;
+            letter-spacing: 0.05em;
+        }
+
+        .provider-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
         }
 
         .provider-btn {
-            text-align: left;
-            padding: 8px 12px;
-            background: #2d2d2d;
-            border: 1px solid #3d3d3d;
-            border-radius: 6px;
-            color: #d4d4d4;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            color: var(--text-main);
             cursor: pointer;
             font-size: 13px;
             display: flex;
             align-items: center;
             gap: 8px;
-            margin-bottom: 6px;
+            transition: all 0.2s;
         }
 
         .provider-btn.active {
-            background: #0e639c22;
+            background: rgba(59, 130, 246, 0.1);
             border-color: var(--accent);
+            color: var(--accent);
         }
 
         input.settings-input,
         select.settings-select {
             width: 100%;
-            background: #2d2d2d;
-            border: 1px solid #3d3d3d;
-            border-radius: 6px;
-            color: #d4d4d4;
-            padding: 8px 10px;
-            font-size: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            color: var(--text-main);
+            padding: 12px;
+            font-size: 13px;
             outline: none;
-            box-sizing: border-box;
+            transition: border-color 0.2s;
         }
 
-        button.primary-btn {
+        input.settings-input:focus {
+            border-color: var(--accent);
+        }
+
+        .primary-btn {
             background: var(--accent);
             color: white;
             border: none;
-            border-radius: 6px;
-            padding: 10px;
+            border-radius: 12px;
+            padding: 14px;
             cursor: pointer;
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 600;
-            margin-top: 4px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
         }
 
-        button.secondary-btn {
-            background: #2d2d2d;
-            color: #d4d4d4;
-            border: 1px solid #3d3d3d;
-            border-radius: 6px;
-            padding: 6px 10px;
-            cursor: pointer;
-            font-size: 12px;
-            margin-top: 2px;
+        .primary-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
         }
 
         @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        @keyframes pulse {
-
-            0%,
-            80%,
-            100% {
-                opacity: .3;
-                transform: scale(.8)
-            }
-
-            40% {
-                opacity: 1;
-                transform: scale(1.1)
-            }
+            to { transform: rotate(360deg); }
         }
 
         .typing-indicator {
             display: flex;
             align-items: center;
-            gap: 8px;
-            color: #888;
-            font-size: 12px;
-            padding: 8px;
+            gap: 10px;
+            color: var(--text-muted);
+            font-size: 13px;
+            padding: 4px 8px;
         }
 
-        .typing-dots {
+        .dots {
             display: flex;
             gap: 4px;
         }
 
-        .typing-dots div {
-            width: 6px;
-            height: 6px;
+        .dots div {
+            width: 5px;
+            height: 5px;
             border-radius: 50%;
-            background: #555;
-            animation: pulse 1.2s infinite ease-in-out;
+            background: var(--accent);
+            animation: pulse 1.4s infinite ease-in-out both;
         }
 
-        .typing-dots div:nth-child(2) {
-            animation-delay: 0.2s;
-        }
+        .dots div:nth-child(1) { animation-delay: -0.32s; }
+        .dots div:nth-child(2) { animation-delay: -0.16s; }
 
-        .typing-dots div:nth-child(3) {
-            animation-delay: 0.4s;
+        @keyframes pulse {
+            0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
+            40% { transform: scale(1); opacity: 1; }
         }
     </style>
 </head>
@@ -474,95 +602,106 @@
     <!-- Header -->
     <div class="header">
         <div class="header-left">
-            <span class="app-title">Cycy</span>
+            <div class="assistant-avatar" style="width:28px;height:28px;">🌸</div>
+            <span class="app-title">Cycy AI</span>
 
             <!-- Mode Picker -->
             <div style="position: relative;">
-                <button id="mode-btn" class="badge" onclick="toggleModeMenu(event)" style="color: #e5c07b;">
-                    <i id="mode-icon" data-lucide="zap" style="width:11px;height:11px;"></i>
+                <button id="mode-btn" class="badge" onclick="toggleModeMenu(event)" style="color: #61afef;">
+                    <i id="mode-icon" data-lucide="zap" style="width:12px;height:12px;"></i>
                     <span id="mode-label">Fast</span>
                     <i data-lucide="chevron-down" style="width:10px;height:10px;margin-left:2px;"></i>
                 </button>
                 <div id="mode-menu"
-                    style="display: none; position: absolute; top: 110%; left: 0; background: #252526; border: 1px solid #3d3d3d; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); z-index: 100; min-width: 160px; overflow: hidden; flex-direction: column;">
+                    style="display: none; position: absolute; top: 115%; left: 0; background: #1a1a1a; border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 100; min-width: 180px; overflow: hidden; flex-direction: column; backdrop-filter: blur(10px);">
                     <button class="mode-option" onclick="selectMode('fast')"
-                        style="display: flex; flex-direction: column; width: 100%; text-align: left; padding: 9px 12px; border: none; cursor: pointer; color: #e5c07b; background: #2a2d2e;">
+                        style="display: flex; flex-direction: column; width: 100%; text-align: left; padding: 12px; border: none; cursor: pointer; color: #fff; background: rgba(255,255,255,0.05);">
                         <span
-                            style="display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600;"><i
-                                data-lucide="zap" style="width:12px;height:12px;"></i> Fast</span>
-                        <span style="font-size: 11px; color: #888;">Instant answers</span>
+                            style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600;"><i
+                                data-lucide="zap" style="width:14px;height:14px;color:#e5c07b"></i> Fast Mode</span>
+                        <span style="font-size: 11px; color: #888; margin-top: 2px;">Instant responses for quick tasks</span>
                     </button>
                     <button class="mode-option" onclick="selectMode('plan')"
-                        style="display: flex; flex-direction: column; width: 100%; text-align: left; padding: 9px 12px; background: transparent; border: none; cursor: pointer; color: #61afef;">
+                        style="display: flex; flex-direction: column; width: 100%; text-align: left; padding: 12px; background: transparent; border: none; cursor: pointer; color: #ccc;">
                         <span
-                            style="display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600;"><i
-                                data-lucide="map" style="width:12px;height:12px;"></i> Plan</span>
-                        <span style="font-size: 11px; color: #888;">Think step by step</span>
+                            style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600;"><i
+                                data-lucide="map" style="width:14px;height:14px;color:#61afef"></i> Plan Mode</span>
+                        <span style="font-size: 11px; color: #888; margin-top: 2px;">Complex logic & step-by-step reasoning</span>
                     </button>
                 </div>
             </div>
 
             <button id="provider-badge" class="badge badge-provider" onclick="toggleSettings(true)">
-                <i data-lucide="settings" style="width:11px;height:11px;"></i> Setup
+                <i data-lucide="settings" style="width:12px;height:12px;"></i> Setup
             </button>
         </div>
         <button class="icon-btn" onclick="clearHistory()" title="Clear Chat">
-            <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
+            <i data-lucide="trash-2" style="width:16px;height:16px;"></i>
         </button>
     </div>
 
     <!-- Chat Area -->
     <div class="chat-area" id="chat-container">
         <div class="empty-state" id="empty-state">
-            <i data-lucide="zap" style="width:30px;height:30px;color:#444;"></i>
-            <div style="font-size: 14px; color: #888;">Ask Cycy anything</div>
+            <div class="empty-icon"><i data-lucide="brain"></i></div>
+            <div style="font-family: var(--heading-font); font-size: 18px; font-weight: 600; color: #fff;">How can I help you today?</div>
+            <div style="font-size: 13px; color: var(--text-muted); max-width: 200px;">Ask me to write code, debug, or explain concepts.</div>
             <div id="setup-hint"
-                style="font-size: 12px; color: var(--accent); cursor: pointer; text-decoration: underline;"
-                onclick="toggleSettings(true)">Configure AI provider first →</div>
+                style="margin-top: 10px; font-size: 12px; color: var(--accent); cursor: pointer; font-weight: 500;"
+                onclick="toggleSettings(true)">Configure AI provider to start →</div>
         </div>
     </div>
 
     <!-- Input Area -->
     <div class="input-area">
-        <div class="input-box">
-            <textarea id="chat-input" rows="1" placeholder="Configure a provider first →" disabled></textarea>
-            <button id="send-btn" class="send-btn"><i data-lucide="send" style="width:14px;height:14px;"></i></button>
-            <button id="stop-btn" class="stop-btn" style="display: none;"><i data-lucide="square"
-                    style="width:14px;height:14px;fill:currentColor"></i></button>
+        <div class="input-wrapper">
+            <div class="input-row">
+                <textarea id="chat-input" rows="1" placeholder="Type a message..." disabled></textarea>
+                <div class="action-btns">
+                    <button id="send-btn" class="send-btn" title="Send (Enter)">
+                        <i data-lucide="arrow-up" style="width:18px;height:18px;"></i>
+                    </button>
+                    <button id="stop-btn" class="stop-btn" style="display: none;" title="Stop generation">
+                        <i data-lucide="square" style="width:14px;height:14px;fill:currentColor"></i>
+                    </button>
+                </div>
+            </div>
         </div>
-        <div style="margin-top: 4px; font-size: 11px; color: #444; text-align: right;">Enter to send · Shift+Enter for
-            new line</div>
+        <div class="shortcut-hint"><b>Enter</b> to send · <b>Shift+Enter</b> for newline</div>
     </div>
 
     <!-- Settings Overlay -->
     <div class="settings-overlay" id="settings-overlay">
-        <div class="settings-title">
-            <span>AI Provider Settings</span>
-            <button class="icon-btn" onclick="toggleSettings(false)"><i data-lucide="x"
-                    style="width:16px;height:16px;"></i></button>
+        <div class="settings-header">
+            <h2>AI Provider Settings</h2>
+            <button class="icon-btn" onclick="toggleSettings(false)"><i data-lucide="x" style="width:20px;height:20px;"></i></button>
         </div>
 
-        <div>
-            <label class="settings-label">Provider</label>
-            <div id="provider-list"></div>
+        <div class="settings-group">
+            <label class="settings-label">Select Provider</label>
+            <div id="provider-list" class="provider-grid"></div>
         </div>
 
-        <div>
-            <label class="settings-label"><i data-lucide="key" style="width:11px;height:11px;"></i> API Key</label>
-            <input type="password" id="api-key-input" class="settings-input" placeholder="Enter API Key">
-            <div style="margin-top: 6px; text-align: right;">
-                <p style="font-size: 11px; color: #555; float: left; margin:0;">Stored securely in VS Code.</p>
+        <div class="settings-group">
+            <label class="settings-label">API Key</label>
+            <input type="password" id="api-key-input" class="settings-input" placeholder="••••••••••••••••">
+            <div style="font-size: 11px; color: var(--text-muted); display:flex; align-items:center; gap:4px;">
+                <i data-lucide="shield-check" style="width:12px;"></i> Stored securely in VS Code.
             </div>
         </div>
 
-        <button class="secondary-btn" onclick="fetchModels()">Fetch Available Models</button>
+        <div style="display: flex; gap: 8px;">
+            <button class="badge" onclick="fetchModels()" style="flex: 1; justify-content: center; padding: 10px;">
+                <i data-lucide="refresh-cw" style="width:12px;"></i> Fetch Models
+            </button>
+        </div>
 
-        <div>
+        <div class="settings-group">
             <label class="settings-label">Model</label>
             <select id="model-select" class="settings-select"></select>
         </div>
 
-        <button class="primary-btn" onclick="applySettings()">Apply & Connect</button>
+        <button class="primary-btn" onclick="applySettings()">Save Configuration</button>
     </div>
 
     <script>
@@ -666,7 +805,7 @@
                 btn.style.color = '#e5c07b';
                 label.innerText = 'Fast';
                 icon.setAttribute('data-lucide', 'zap');
-                options[0].style.backgroundColor = '#2a2d2e';
+                options[0].style.backgroundColor = 'rgba(255,255,255,0.05)';
                 options[1].style.backgroundColor = 'transparent';
                 appendSystemMessage('Switched to Fast mode.');
             } else {
@@ -674,7 +813,7 @@
                 label.innerText = 'Plan';
                 icon.setAttribute('data-lucide', 'map');
                 options[0].style.backgroundColor = 'transparent';
-                options[1].style.backgroundColor = '#2a2d2e';
+                options[1].style.backgroundColor = 'rgba(255,255,255,0.05)';
                 appendSystemMessage('Switched to Plan mode. (Step-by-step reasoning)');
             }
 
@@ -745,9 +884,9 @@
             isConfigured = configured;
             if (configured) {
                 inputEl.disabled = false;
-                inputEl.placeholder = "Ask Cycy...";
+                inputEl.placeholder = "How can I help you today?";
                 providerBadge.classList.add('configured');
-                providerBadge.innerHTML = `<i data-lucide="settings" style="width:11px;height:11px;"></i> ${PROVIDERS[currentProvider].label.split(' ').slice(1).join(' ')}`;
+                providerBadge.innerHTML = `<i data-lucide="zap" style="width:12px;height:12px;"></i> ${PROVIDERS[currentProvider].label.split(' ').slice(1).join(' ')}`;
                 setupHint.style.display = 'none';
             } else {
                 inputEl.disabled = true;
@@ -813,7 +952,7 @@
                 const indicator = document.createElement('div');
                 indicator.id = 'typing-indicator';
                 indicator.className = 'typing-indicator';
-                indicator.innerHTML = `<div class="typing-dots"><div></div><div></div><div></div></div> Thinking...`;
+                indicator.innerHTML = `<div class="dots"><div></div><div></div><div></div></div> Thinking...`;
                 chatContainer.appendChild(indicator);
                 scrollToBottom();
             } else {
@@ -843,7 +982,7 @@
             collapseThinkingBlock();
 
             const getToolLabel = (n, a) => {
-                const file = a?.TargetFile || a?.AbsolutePath || '';
+                const file = a?.TargetFile || a?.AbsolutePath || a?.path || '';
                 const base = file ? file.split('/').pop() : '';
                 
                 switch(n) {
@@ -851,10 +990,10 @@
                     case 'replace_file_content': return `Updating \`${base}\``;
                     case 'multi_replace_file_content': return `Updating \`${base}\``;
                     case 'view_file': return `Reading \`${base}\``;
-                    case 'view_code_item': return `Reading \`${a?.ItemName || base}\``;
-                    case 'list_dir': return `Listing \`${a?.DirectoryPath || './'}\``;
-                    case 'run_command': return `Running \`${a?.CommandLine || ''}\``;
-                    case 'find_by_name': return `Searching for \`${a?.Pattern || ''}\``;
+                    case 'view_code_item': return `Reading \`${a?.ItemName || a?.itemName || base}\``;
+                    case 'list_dir': return `Listing \`${a?.DirectoryPath || a?.path || './'}\``;
+                    case 'run_command': return `Running \`${a?.CommandLine || a?.command || ''}\``;
+                    case 'find_by_name': return `Searching for \`${a?.Pattern || a?.pattern || ''}\``;
                     case 'grep_search': return `Searching codebase...`;
                     default: return `Running \`${n}\``;
                 }
@@ -862,16 +1001,16 @@
 
             const label = getToolLabel(name, args);
             const ind = document.getElementById('typing-indicator');
-            const parent = ind ? chatContainer.insertBefore(document.createElement('div'), ind) : chatContainer.appendChild(document.createElement('div'));
 
             if (isStart) {
+                const parent = ind ? chatContainer.insertBefore(document.createElement('div'), ind) : chatContainer.appendChild(document.createElement('div'));
                 currentAssistantMessageDiv = null;
                 currentRawContent = '';
 
                 parent.className = 'message assistant';
                 parent.innerHTML = `
                     <div class="tool-block" id="tool-${name}-${Date.now()}">
-                        <div class="spinner"></div> ${label}...
+                        <div class="spinner"></div> <span>${label}...</span>
                     </div>
                 `;
             } else {
@@ -879,16 +1018,17 @@
                 const blocks = document.querySelectorAll('.tool-block');
                 if (blocks.length > 0) {
                     const last = blocks[blocks.length - 1];
-                    last.innerHTML = `<i data-lucide="check" style="width:14px;color:rgba(255,255,255,0.5)"></i> Completed ${label}`;
+                    last.innerHTML = `<i data-lucide="check" style="width:14px;color:#10b981"></i> <span>Completed ${label}</span>`;
                     
                     // Special case: Plan Mode approval
-                    if (currentMode === 'plan' && (args?.TargetFile === 'plan.md' || args?.TargetFile?.endsWith('/plan.md'))) {
+                    const filePath = args?.TargetFile || args?.AbsolutePath || args?.path || '';
+                    if (currentMode === 'plan' && (filePath === 'plan.md' || filePath.endsWith('/plan.md'))) {
                         const approvalDiv = document.createElement('div');
-                        approvalDiv.style.marginTop = '8px';
+                        approvalDiv.style.marginTop = '10px';
                         approvalDiv.style.display = 'flex';
                         approvalDiv.style.gap = '8px';
                         approvalDiv.innerHTML = `
-                            <button class="badge" style="background:#1d3a1d;border:1px solid #2d6a2d;color:#89d185;cursor:pointer" onclick="approvePlan()">Approve & Run</button>
+                            <button class="primary-btn" style="padding: 6px 12px; font-size: 11px; margin-top:0;" onclick="approvePlan()">Approve & Run</button>
                             <button class="badge" style="cursor:pointer" onclick="addFeedback()">Add Notes</button>
                         `;
                         last.appendChild(approvalDiv);
@@ -900,17 +1040,32 @@
             scrollToBottom();
         }
 
+        function toggleThought(headerEl) {
+            const block = headerEl.closest('.thought-block');
+            if (block) block.classList.toggle('collapsed');
+        }
+
         function appendThinkingToken(token) {
             if (!currentThinkingDiv) {
                 const wrapper = document.createElement('div');
                 wrapper.className = 'thought-block';
-                wrapper.innerHTML = `
-                    <div class="thought-header" onclick="this.parentElement.classList.toggle('collapsed')">
-                        <span><i data-lucide="brain" style="width:10px;height:10px;margin-right:4px;"></i> Thinking</span>
-                        <i data-lucide="chevron-down" style="width:10px;height:10px;"></i>
+
+                const header = document.createElement('div');
+                header.className = 'thought-header';
+                header.onclick = function() { toggleThought(this); };
+                header.innerHTML = `
+                    <div class="thought-title">
+                        <i data-lucide="brain" style="width:14px;height:14px;"></i>
+                        <span>Thinking Process</span>
                     </div>
-                    <div class="thought-content"></div>
+                    <i data-lucide="chevron-down" class="chevron" style="width:14px;height:14px;"></i>
                 `;
+
+                const content = document.createElement('div');
+                content.className = 'thought-content';
+
+                wrapper.appendChild(header);
+                wrapper.appendChild(content);
                 
                 const ind = document.getElementById('typing-indicator');
                 if (ind) {
@@ -918,7 +1073,7 @@
                 } else {
                     chatContainer.appendChild(wrapper);
                 }
-                currentThinkingDiv = wrapper.querySelector('.thought-content');
+                currentThinkingDiv = content;
                 currentThinkingRaw = '';
                 lucide.createIcons();
             }
@@ -930,8 +1085,8 @@
 
         function collapseThinkingBlock() {
             if (currentThinkingDiv) {
-                const block = currentThinkingDiv.parentElement;
-                if (!block.classList.contains('collapsed')) {
+                const block = currentThinkingDiv.closest('.thought-block');
+                if (block) {
                     block.classList.add('collapsed');
                 }
                 currentThinkingDiv = null;
@@ -945,7 +1100,10 @@
                 wrapper.className = 'message assistant';
                 wrapper.innerHTML = `
                     <div class="bubble-assistant">
-                        <div class="assistant-header"><span class="assistant-name">CYCY</span></div>
+                        <div class="assistant-header">
+                            <div class="assistant-avatar">🌸</div>
+                            <span class="assistant-name">Cycy AI</span>
+                        </div>
                         <div class="content"></div>
                     </div>
                 `;
@@ -987,6 +1145,13 @@
 
             return html;
         }
+
+        inputEl.addEventListener('focus', () => {
+            inputEl.parentElement.parentElement.classList.add('focused'); // input-wrapper
+        });
+        inputEl.addEventListener('blur', () => {
+            inputEl.parentElement.parentElement.classList.remove('focused');
+        });
 
         function scrollToBottom() {
             chatContainer.scrollTop = chatContainer.scrollHeight;

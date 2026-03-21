@@ -32,11 +32,11 @@ export class CycyChatViewProvider implements vscode.WebviewViewProvider {
             this._view?.webview.postMessage({ type: 'stopStreaming' });
         });
         
-        this._aiService.onToolExecutionStart(({ name, args }) => {
+        this._aiService.onToolExecutionStart(({ name, args }: { name: string, args: any }) => {
             this._view?.webview.postMessage({ type: 'toolStart', name, args });
         });
         
-        this._aiService.onToolExecutionEnd(({ name, args, result }) => {
+        this._aiService.onToolExecutionEnd(({ name, args, result }: { name: string, args: any, result: string }) => {
             this._view?.webview.postMessage({ type: 'toolEnd', name, args, result });
         });
     }
