@@ -1,14 +1,83 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
 import { SettingsManager } from './SettingsManager';
 import { ToolExecutor } from '../tools/ToolExecutor';
 
 export class AIService {
+    private generateWorkspaceTree(dirPath: string, depth: number = 0, maxDepth: number = 3): string {
+        if (depth > maxDepth) return '';
+        let tree = '';
+        const excludeDirs = new Set(['node_modules', '.git', 'out', 'dist', 'build', '.vscode', '.cycy']);
+        
+        try {
+            const items = fs.readdirSync(dirPath, { withFileTypes: true });
+            
+            // Sort: directories first, then files
+            items.sort((a, b) => {
+                if (a.isDirectory() && !b.isDirectory()) return -1;
+                if (!a.isDirectory() && b.isDirectory()) return 1;
+                return a.name.localeCompare(b.name);
+            });
+
+            for (const item of items) {
+                // Skip hidden files and excluded directories
+                if (item.name.startsWith('.') && item.name !== '.gitignore' && item.name !== '.env.example') continue;
+                if (item.isDirectory() && excludeDirs.has(item.name)) continue;
+                
+                const indent = '  '.repeat(depth);
+                const prefix = item.isDirectory() ? '📂 ' : '📄 ';
+                tree += `${indent}${prefix}${item.name}\n`;
+                
+                if (item.isDirectory()) {
+                    tree += this.generateWorkspaceTree(path.join(dirPath, item.name), depth + 1, maxDepth);
+                }
+            }
+        } catch (e) {
+            // ignore read errors
+        }
+        return tree;
+    }
+
     private getSystemPrompt(mode: 'fast' | 'plan' = 'fast'): string {
         const workspaceFolders = vscode.workspace.workspaceFolders;
         const workspacePath = workspaceFolders && workspaceFolders.length > 0 ? workspaceFolders[0].uri.fsPath : 'No workspace open';
+        
+        let workspaceTree = '';
+        if (workspacePath !== 'No workspace open') {
+            const treeLimit = this.generateWorkspaceTree(workspacePath, 0, 3);
+            if (treeLimit.trim().length > 0) {
+                workspaceTree = '\n\nWORKSPACE FILE TREE (Depth 3):\n' + treeLimit;
+            }
+        }
+
+        let pinnedContext = '';
+        const pinnedFiles = this._toolExecutor.getPinnedFiles();
+        if (pinnedFiles.length > 0) {
+            pinnedContext = '\n\nPINNED FILES CONTEXT:\n' + pinnedFiles.map(filePath => {
+                try {
+                    const content = fs.readFileSync(filePath, 'utf-8');
+                    return `--- Start of Pinned File: ${filePath} ---\n${content}\n--- End of Pinned File ---`;
+                } catch(e) {
+                    return `--- Error reading pinned file: ${filePath} ---`;
+                }
+            }).join('\n\n');
+        }
+
+        let knowledgeContext = '';
+        if (workspacePath !== 'No workspace open') {
+            const knPath = path.join(workspacePath, '.cycy', 'knowledge.md');
+            if (fs.existsSync(knPath)) {
+                try {
+                    const knContent = fs.readFileSync(knPath, 'utf-8');
+                    knowledgeContext = '\n\nPROJECT KNOWLEDGE BASE:\nThe following rules and patterns MUST be followed for this project:\n' + knContent;
+                } catch (e) {}
+            }
+        }
+
         let prompt = `You are Cycy AI, an elite agentic coding assistant integrated directly into VS Code (similar to Google Antigravity or GitHub Copilot).
 
-CURRENT WORKSPACE ROOT: ${workspacePath}
+CURRENT WORKSPACE ROOT: ${workspacePath}${workspaceTree}${pinnedContext}${knowledgeContext}
 You MUST restrict all your file reading, writing, and searching strictly to this workspace path. Do NOT attempt to read from or list root directories like '/' as it triggers OS permission errors.
 
 CRITICAL BEHAVIORAL RULES:
@@ -21,14 +90,17 @@ If the user asks you to implement a multistep plan:
 - Then, execute the tasks step by step. As you complete each step, you MUST use 'replace_file_content' to update 'task.md' and mark the task as done (e.g. \`[x] Task 1\`).
 - DO NOT recreate 'task.md' from scratch with 'write_to_file' once it exists.
 - When all tasks in the checklist are marked as done, output your final result to the user.
-5. THINKING: Always show your step-by-step reasoning before taking any action. You MUST wrap your private reasoning completely inside <think> and </think> tags. The user CANNOT see what is inside <think> tags. Your final response or question to the user MUST be OUTSIDE the <think> tags.`;
+5. THINKING: Always show your step-by-step reasoning before taking any action. You MUST wrap your private reasoning completely inside <think> and </think> tags. The user CANNOT see what is inside <think> tags. Your final response or question to the user MUST be OUTSIDE the <think> tags.
+6. EXPLORE SMARTLY: You already have the workspace directory tree in your context. Do not use 'list_dir' on the project root. When exploring unknown files, ALWAYS use 'view_file_outline' first to get the structural layout before committing to reading the entire file with 'view_file'.
+7. PIN CONTEXT: If you are tasked with heavily modifying a specific file or need to frequently reference a core utility file, proactively use 'pin_file' to inject it into your permanent memory. Use 'unpin_file' when you no longer need it.
+8. BUILD KNOWLEDGE: If you discover a strict architectural pattern in the codebase, or if the user explicitly gives you a project rule (e.g., 'we use Tailwind', 'all APIs must be wrapped in a specific JSON'), you MUST proactively use the 'update_project_knowledge' tool to memorize it.`;
 
         if (mode === 'plan') {
             prompt += `
 
 PLANNING MODE ENABLED:
 You are currently in Planning Mode. Your goal is to design a technical solution BEFORE taking any destructive actions.
-1. RESEARCH: Use 'list_dir', 'grep_search', and 'view_file' to understand the codebase.
+1. RESEARCH: Formulate your implementation approach by referencing the provided WORKSPACE FILE TREE, utilizing 'view_file_outline' for rapid file analysis, and using 'grep_search' for deep codebase searches.
 2. PLAN: You MUST use the 'write_to_file' tool to create a file named 'plan.md' in the workspace root containing your proposed plan. Do NOT just print the plan in the chat. The 'plan.md' file MUST include:
    - ## Goal: What are we doing?
    - ## Proposed Changes: Which files will be modified?

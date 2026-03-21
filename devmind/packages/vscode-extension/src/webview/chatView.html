@@ -1003,6 +1003,8 @@
             const ind = document.getElementById('typing-indicator');
 
             if (isStart) {
+                if (ind) ind.innerHTML = `<div class="dots"><div></div><div></div><div></div></div> ${label.replace(/`/g, '')}...`;
+                
                 const parent = ind ? chatContainer.insertBefore(document.createElement('div'), ind) : chatContainer.appendChild(document.createElement('div'));
                 currentAssistantMessageDiv = null;
                 currentRawContent = '';
@@ -1014,6 +1016,8 @@
                     </div>
                 `;
             } else {
+                if (ind) ind.innerHTML = `<div class="dots"><div></div><div></div><div></div></div> Thinking...`;
+
                 // Find existing tool blocks and update the last one matching the name
                 const blocks = document.querySelectorAll('.tool-block');
                 if (blocks.length > 0) {
@@ -1034,7 +1038,7 @@
                         last.appendChild(approvalDiv);
                     }
                     
-                    lucide.createIcons();
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
                 }
             }
             scrollToBottom();

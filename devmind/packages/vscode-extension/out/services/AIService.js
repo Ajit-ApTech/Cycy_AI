@@ -35,14 +35,81 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AIService = void 0;
 const vscode = __importStar(require("vscode"));
+const fs = __importStar(require("fs"));
+const path = __importStar(require("path"));
 const ToolExecutor_1 = require("../tools/ToolExecutor");
 class AIService {
+    generateWorkspaceTree(dirPath, depth = 0, maxDepth = 3) {
+        if (depth > maxDepth)
+            return '';
+        let tree = '';
+        const excludeDirs = new Set(['node_modules', '.git', 'out', 'dist', 'build', '.vscode', '.cycy']);
+        try {
+            const items = fs.readdirSync(dirPath, { withFileTypes: true });
+            // Sort: directories first, then files
+            items.sort((a, b) => {
+                if (a.isDirectory() && !b.isDirectory())
+                    return -1;
+                if (!a.isDirectory() && b.isDirectory())
+                    return 1;
+                return a.name.localeCompare(b.name);
+            });
+            for (const item of items) {
+                // Skip hidden files and excluded directories
+                if (item.name.startsWith('.') && item.name !== '.gitignore' && item.name !== '.env.example')
+                    continue;
+                if (item.isDirectory() && excludeDirs.has(item.name))
+                    continue;
+                const indent = '  '.repeat(depth);
+                const prefix = item.isDirectory() ? '📂 ' : '📄 ';
+                tree += `${indent}${prefix}${item.name}\n`;
+                if (item.isDirectory()) {
+                    tree += this.generateWorkspaceTree(path.join(dirPath, item.name), depth + 1, maxDepth);
+                }
+            }
+        }
+        catch (e) {
+            // ignore read errors
+        }
+        return tree;
+    }
     getSystemPrompt(mode = 'fast') {
         const workspaceFolders = vscode.workspace.workspaceFolders;
         const workspacePath = workspaceFolders && workspaceFolders.length > 0 ? workspaceFolders[0].uri.fsPath : 'No workspace open';
+        let workspaceTree = '';
+        if (workspacePath !== 'No workspace open') {
+            const treeLimit = this.generateWorkspaceTree(workspacePath, 0, 3);
+            if (treeLimit.trim().length > 0) {
+                workspaceTree = '\n\nWORKSPACE FILE TREE (Depth 3):\n' + treeLimit;
+            }
+        }
+        let pinnedContext = '';
+        const pinnedFiles = this._toolExecutor.getPinnedFiles();
+        if (pinnedFiles.length > 0) {
+            pinnedContext = '\n\nPINNED FILES CONTEXT:\n' + pinnedFiles.map(filePath => {
+                try {
+                    const content = fs.readFileSync(filePath, 'utf-8');
+                    return `--- Start of Pinned File: ${filePath} ---\n${content}\n--- End of Pinned File ---`;
+                }
+                catch (e) {
+                    return `--- Error reading pinned file: ${filePath} ---`;
+                }
+            }).join('\n\n');
+        }
+        let knowledgeContext = '';
+        if (workspacePath !== 'No workspace open') {
+            const knPath = path.join(workspacePath, '.cycy', 'knowledge.md');
+            if (fs.existsSync(knPath)) {
+                try {
+                    const knContent = fs.readFileSync(knPath, 'utf-8');
+                    knowledgeContext = '\n\nPROJECT KNOWLEDGE BASE:\nThe following rules and patterns MUST be followed for this project:\n' + knContent;
+                }
+                catch (e) { }
+            }
+        }
         let prompt = `You are Cycy AI, an elite agentic coding assistant integrated directly into VS Code (similar to Google Antigravity or GitHub Copilot).
 
-CURRENT WORKSPACE ROOT: ${workspacePath}
+CURRENT WORKSPACE ROOT: ${workspacePath}${workspaceTree}${pinnedContext}${knowledgeContext}
 You MUST restrict all your file reading, writing, and searching strictly to this workspace path. Do NOT attempt to read from or list root directories like '/' as it triggers OS permission errors.
 
 CRITICAL BEHAVIORAL RULES:
@@ -50,7 +117,12 @@ CRITICAL BEHAVIORAL RULES:
 2. DO NOT REPEAT CODE IN CHAT: When you use a tool to create or modify a file, DO NOT print the file contents in the chat message. Simply tell the user what you did in plain English. Keep your chat concise but comprehensive.
 3. FILE OVERWRITES: It is perfectly acceptable to overwrite or edit an existing file when you are asked to make changes to it. However, if the user explicitly asks to create a "new" file, ensure you generate a novel filename to avoid overwriting their old work. Use 'list_dir' or 'find_by_name' if you need to check existing file names first.
 4. AGENTIC WORKFLOW: You are an autonomous agent. If a task requires multiple steps, use the tools chained together to finish the entire task.
-5. THINKING: Always show your step-by-step reasoning before taking any action. You MUST wrap your reasoning inside <think> and </think> tags.`;
+If the user asks you to implement a multistep plan:
+- FIRST, create a 'task.md' file with a checklist of tasks (e.g. \`[ ] Task 1\`).
+- Then, execute the tasks step by step. As you complete each step, you MUST use 'replace_file_content' to update 'task.md' and mark the task as done (e.g. \`[x] Task 1\`).
+- DO NOT recreate 'task.md' from scratch with 'write_to_file' once it exists.
+- When all tasks in the checklist are marked as done, output your final result to the user.
+5. THINKING: Always show your step-by-step reasoning before taking any action. You MUST wrap your private reasoning completely inside <think> and </think> tags. The user CANNOT see what is inside <think> tags. Your final response or question to the user MUST be OUTSIDE the <think> tags.`;
         if (mode === 'plan') {
             prompt += `
 
@@ -195,7 +267,7 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
             throw new Error(`Gemini API Error: ${err}`);
         }
         let pendingFunctionCall = null;
-        await this.readSSEStream(response, (text, functionCall) => {
+        const fullRawContent = await this.readSSEStream(response, (text, functionCall) => {
             if (this._abortController?.signal.aborted)
                 return;
             if (text)
@@ -211,7 +283,7 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
             const result = await this._toolExecutor.executeTool(pendingFunctionCall.name, args);
             this._onToolExecutionEnd.fire({ name: pendingFunctionCall.name, args, result });
             // Append back to history and recurse
-            this._messageHistory.push({ role: 'assistant', content: `[Tool Call: ${pendingFunctionCall.name}]` });
+            this._messageHistory.push({ role: 'assistant', content: (fullRawContent ? fullRawContent + '\n' : '') + `[Tool Call: ${pendingFunctionCall.name}]` });
             this._messageHistory.push({ role: 'tool', content: `Tool Result for ${pendingFunctionCall.name}:\n${result}` });
             // Recurse (Agentic Loop)
             if (!this._abortController?.signal.aborted) {
@@ -263,7 +335,7 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
             throw new Error(`API Error: ${err}`);
         }
         const pendingToolCalls = new Map();
-        await this.readSSEStreamOpenAI(response, (text, toolCallChunk) => {
+        const fullRawContent = await this.readSSEStreamOpenAI(response, (text, toolCallChunk) => {
             if (this._abortController?.signal.aborted)
                 return;
             if (text)
@@ -305,7 +377,7 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
             }
             // Always use native OpenAI format for all providers that support streamOpenAI
             // Push the assistant tool_calls message once
-            const toolCallsMsg = { role: 'assistant', content: '', tool_calls: [] };
+            const toolCallsMsg = { role: 'assistant', content: fullRawContent || '', tool_calls: [] };
             let i = 0;
             for (const [_, c] of pendingToolCalls.entries()) {
                 toolCallsMsg.tool_calls.push({
@@ -341,10 +413,11 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
         const decoder = new TextDecoder();
         let buffer = '';
         if (!reader)
-            return;
+            return '';
         let isThinking = false;
         let cumulativeContent = '';
         let processedLength = 0;
+        let fullRawContent = '';
         while (true) {
             if (signal?.aborted) {
                 reader.cancel();
@@ -367,6 +440,7 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
                         if (parts && parts.length > 0) {
                             for (const part of parts) {
                                 if (part.text) {
+                                    fullRawContent += part.text;
                                     // Process the part text for thinking tags
                                     const result = this.parseThinkingTags(part.text, isThinking, cumulativeContent, processedLength);
                                     isThinking = result.isThinking;
@@ -396,16 +470,18 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
         }
         // Final flush
         this.flushThinkingTags(onToken, isThinking, cumulativeContent, processedLength);
+        return fullRawContent;
     }
     async readSSEStreamOpenAI(response, onToken, signal) {
         const reader = response.body?.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
         if (!reader)
-            return;
+            return '';
         let isThinking = false;
         let cumulativeContent = '';
         let processedLength = 0;
+        let fullRawContent = '';
         while (true) {
             if (signal?.aborted) {
                 reader.cancel();
@@ -426,6 +502,7 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
                         const parsed = JSON.parse(data);
                         const delta = parsed.choices?.[0]?.delta;
                         if (delta?.content) {
+                            fullRawContent += delta.content;
                             const result = this.parseThinkingTags(delta.content, isThinking, cumulativeContent, processedLength);
                             isThinking = result.isThinking;
                             cumulativeContent = result.cumulativeContent;
@@ -454,6 +531,7 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
         }
         // Final flush
         this.flushThinkingTags(onToken, isThinking, cumulativeContent, processedLength);
+        return fullRawContent;
     }
     parseThinkingTags(newText, isThinking, cumulativeContent, processedLength) {
         cumulativeContent += newText;

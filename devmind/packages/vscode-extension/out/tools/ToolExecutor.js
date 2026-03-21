@@ -1,6 +1,42 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ToolExecutor = void 0;
+const vscode = __importStar(require("vscode"));
+const path = __importStar(require("path"));
+const fs = __importStar(require("fs"));
 const FileReadingTools_1 = require("./FileReadingTools");
 const FileWritingTools_1 = require("./FileWritingTools");
 const SearchTools_1 = require("./SearchTools");
@@ -11,6 +47,10 @@ class ToolExecutor {
         this.fileWriter = new FileWritingTools_1.FileWritingTools();
         this.searcher = new SearchTools_1.SearchTools();
         this.terminal = new TerminalTools_1.TerminalTools();
+        this.pinnedFiles = new Set();
+    }
+    getPinnedFiles() {
+        return Array.from(this.pinnedFiles);
     }
     async executeTool(name, args) {
         try {
@@ -32,6 +72,36 @@ class ToolExecutor {
                 case 'run_command': return await this.terminal.runCommand(args.command);
                 case 'command_status': return await this.terminal.commandStatus(args.commandId);
                 case 'send_command_input': return await this.terminal.sendCommandInput(args.commandId, args.input);
+                // Context Memory
+                case 'pin_file': {
+                    this.pinnedFiles.add(args.path);
+                    return `File pinned successfully: ${args.path}. It is now injected into your context.`;
+                }
+                case 'unpin_file': {
+                    if (this.pinnedFiles.has(args.path)) {
+                        this.pinnedFiles.delete(args.path);
+                        return `File unpinned successfully: ${args.path}.`;
+                    }
+                    return `File was not pinned: ${args.path}`;
+                }
+                case 'update_project_knowledge': {
+                    const workspaceFolders = vscode.workspace.workspaceFolders;
+                    if (!workspaceFolders || workspaceFolders.length === 0)
+                        return 'No workspace found to save knowledge.';
+                    const cycyDir = path.join(workspaceFolders[0].uri.fsPath, '.cycy');
+                    if (!fs.existsSync(cycyDir))
+                        fs.mkdirSync(cycyDir);
+                    const knPath = path.join(cycyDir, 'knowledge.md');
+                    let content = args.knowledge;
+                    if (fs.existsSync(knPath)) {
+                        content = fs.readFileSync(knPath, 'utf-8') + '\n\n### ' + args.topic + '\n' + args.knowledge;
+                    }
+                    else {
+                        content = '# Project Knowledge Base\n\n### ' + args.topic + '\n' + args.knowledge;
+                    }
+                    fs.writeFileSync(knPath, content);
+                    return `Successfully added knowledge about '${args.topic}' to .cycy/knowledge.md`;
+                }
                 default:
                     return `Error: Unknown tool '${name}'`;
             }
@@ -126,6 +196,41 @@ class ToolExecutor {
                         }
                     },
                     required: ['path', 'replacements']
+                }
+            },
+            // Context Memory
+            {
+                name: 'pin_file',
+                description: 'Pins a file to your permanent context memory so you don\'t have to keep re-reading it. Use this for core files you are heavily working on.',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        path: { type: 'string', description: 'Absolute path to the file to pin' }
+                    },
+                    required: ['path']
+                }
+            },
+            {
+                name: 'unpin_file',
+                description: 'Removes a file from your permanent context memory once you are done working on it heavily.',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        path: { type: 'string', description: 'Absolute path to the file to unpin' }
+                    },
+                    required: ['path']
+                }
+            },
+            {
+                name: 'update_project_knowledge',
+                description: 'Saves important architectural rules, patterns, or facts about this project to a persistent knowledge base so you do not forget them in future sessions.',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        topic: { type: 'string', description: 'A short topic or category for this knowledge (e.g., CSS Framework, Database Schema, Authentication Rule)' },
+                        knowledge: { type: 'string', description: 'Detailed markdown notes explaining the rule or pattern to remember.' }
+                    },
+                    required: ['topic', 'knowledge']
                 }
             },
             // Search

@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
+import * as fs from 'fs';
 import { FileReadingTools } from './FileReadingTools';
 import { FileWritingTools } from './FileWritingTools';
 import { SearchTools } from './SearchTools';
@@ -9,6 +11,12 @@ export class ToolExecutor {
     private fileWriter = new FileWritingTools();
     private searcher = new SearchTools();
     private terminal = new TerminalTools();
+    
+    private pinnedFiles: Set<string> = new Set();
+
+    public getPinnedFiles(): string[] {
+        return Array.from(this.pinnedFiles);
+    }
 
     public async executeTool(name: string, args: any): Promise<string> {
         try {
@@ -34,6 +42,35 @@ export class ToolExecutor {
                 case 'command_status': return await this.terminal.commandStatus(args.commandId);
                 case 'send_command_input': return await this.terminal.sendCommandInput(args.commandId, args.input);
                 
+                // Context Memory
+                case 'pin_file': {
+                    this.pinnedFiles.add(args.path);
+                    return `File pinned successfully: ${args.path}. It is now injected into your context.`;
+                }
+                case 'unpin_file': {
+                    if (this.pinnedFiles.has(args.path)) {
+                        this.pinnedFiles.delete(args.path);
+                        return `File unpinned successfully: ${args.path}.`;
+                    }
+                    return `File was not pinned: ${args.path}`;
+                }
+                case 'update_project_knowledge': {
+                    const workspaceFolders = vscode.workspace.workspaceFolders;
+                    if (!workspaceFolders || workspaceFolders.length === 0) return 'No workspace found to save knowledge.';
+                    const cycyDir = path.join(workspaceFolders[0].uri.fsPath, '.cycy');
+                    if (!fs.existsSync(cycyDir)) fs.mkdirSync(cycyDir);
+                    const knPath = path.join(cycyDir, 'knowledge.md');
+                    
+                    let content = args.knowledge;
+                    if (fs.existsSync(knPath)) {
+                        content = fs.readFileSync(knPath, 'utf-8') + '\n\n### ' + args.topic + '\n' + args.knowledge;
+                    } else {
+                        content = '# Project Knowledge Base\n\n### ' + args.topic + '\n' + args.knowledge;
+                    }
+                    fs.writeFileSync(knPath, content);
+                    return `Successfully added knowledge about '${args.topic}' to .cycy/knowledge.md`;
+                }
+
                 default:
                     return `Error: Unknown tool '${name}'`;
             }
@@ -129,6 +166,42 @@ export class ToolExecutor {
                         }
                     },
                     required: ['path', 'replacements']
+                }
+            },
+
+            // Context Memory
+            {
+                name: 'pin_file',
+                description: 'Pins a file to your permanent context memory so you don\'t have to keep re-reading it. Use this for core files you are heavily working on.',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        path: { type: 'string', description: 'Absolute path to the file to pin' }
+                    },
+                    required: ['path']
+                }
+            },
+            {
+                name: 'unpin_file',
+                description: 'Removes a file from your permanent context memory once you are done working on it heavily.',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        path: { type: 'string', description: 'Absolute path to the file to unpin' }
+                    },
+                    required: ['path']
+                }
+            },
+            {
+                name: 'update_project_knowledge',
+                description: 'Saves important architectural rules, patterns, or facts about this project to a persistent knowledge base so you do not forget them in future sessions.',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        topic: { type: 'string', description: 'A short topic or category for this knowledge (e.g., CSS Framework, Database Schema, Authentication Rule)' },
+                        knowledge: { type: 'string', description: 'Detailed markdown notes explaining the rule or pattern to remember.' }
+                    },
+                    required: ['topic', 'knowledge']
                 }
             },
 
