@@ -38,9 +38,12 @@ const vscode = __importStar(require("vscode"));
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 class FileWritingTools {
-    async writeToFile(filePath, content, overwrite = false) {
+    async writeToFile(filePath, content, overwrite = true) {
+        // Explicit fallback: if AI sends undefined/null for overwrite, default to true
+        if (overwrite === undefined || overwrite === null)
+            overwrite = true;
         if (fs.existsSync(filePath) && !overwrite) {
-            return `File already exists at ${filePath}. Ensure overwrite is true to replace.`;
+            return `File already exists at ${filePath}. Ensure overwrite is true or use replace_file_content to update it.`;
         }
         try {
             // Ensure directory exists

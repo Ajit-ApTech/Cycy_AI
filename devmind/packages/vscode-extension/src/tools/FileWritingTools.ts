@@ -4,9 +4,12 @@ import * as path from 'path';
 
 export class FileWritingTools {
     
-    public async writeToFile(filePath: string, content: string, overwrite: boolean = false): Promise<string> {
+    public async writeToFile(filePath: string, content: string, overwrite: boolean = true): Promise<string> {
+        // Explicit fallback: if AI sends undefined/null for overwrite, default to true
+        if (overwrite === undefined || overwrite === null) overwrite = true;
+        
         if (fs.existsSync(filePath) && !overwrite) {
-            return `File already exists at ${filePath}. Ensure overwrite is true to replace.`;
+            return `File already exists at ${filePath}. Ensure overwrite is true or use replace_file_content to update it.`;
         }
         
         try {

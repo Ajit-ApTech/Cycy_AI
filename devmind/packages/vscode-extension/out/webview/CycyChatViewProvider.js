@@ -34,6 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CycyChatViewProvider = void 0;
+const vscode = __importStar(require("vscode"));
 const path = __importStar(require("path"));
 const fs = __importStar(require("fs"));
 const AIService_1 = require("../services/AIService");
@@ -61,6 +62,9 @@ class CycyChatViewProvider {
         this._aiService.onToolExecutionEnd(({ name, args, result }) => {
             this._view?.webview.postMessage({ type: 'toolEnd', name, args, result });
         });
+        this._aiService.onConfirmationNeeded(({ id, name, args }) => {
+            this._view?.webview.postMessage({ type: 'confirmCommand', id, name, args });
+        });
     }
     resolveWebviewView(webviewView, context, _token) {
         this._view = webviewView;
@@ -71,8 +75,20 @@ class CycyChatViewProvider {
         webviewView.webview.html = this._getHtmlForWebview();
         webviewView.webview.onDidReceiveMessage(async (data) => {
             switch (data.type) {
+                case 'resolveConfirmation':
+                    this._aiService.resolveConfirmation(data.id, data.approved);
+                    break;
+                case 'showTerminal':
+                    const terminal = vscode.window.terminals.find(t => t.name === 'Cycy AI Exec');
+                    if (terminal) {
+                        terminal.show(false);
+                    }
+                    else {
+                        vscode.window.showInformationMessage('No active terminal is running.');
+                    }
+                    break;
                 case 'send':
-                    this._aiService.sendMessage(data.message, data.mode);
+                    this._aiService.sendMessage(data.message, data.mode, data.images);
                     break;
                 case 'stop':
                     this._aiService.stop();

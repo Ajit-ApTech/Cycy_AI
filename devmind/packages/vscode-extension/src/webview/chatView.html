@@ -348,14 +348,98 @@
             background: var(--code-bg);
             border: 1px solid var(--code-border);
             border-radius: 8px;
-            padding: 10px 14px;
             margin: 6px 0;
             font-size: 12px;
             color: var(--text-muted);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .tool-header {
             display: flex;
             align-items: center;
             gap: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 10px 14px;
+            cursor: pointer;
+            user-select: none;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .tool-header:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .tool-details {
+            padding: 0 14px 10px 14px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            background: rgba(0, 0, 0, 0.2);
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 11px;
+            color: #a3a3a3;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .tool-details::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .tool-details::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        .tool-block.collapsed .tool-details {
+            display: none;
+        }
+
+        .tool-block.collapsed .tool-chevron {
+            transform: rotate(-90deg);
+        }
+
+        .tool-chevron {
+            transition: transform 0.3s;
+            margin-left: auto;
+            color: var(--text-muted);
+        }
+
+        /* Activity Status Bar */
+        .activity-bar {
+            position: absolute;
+            top: 70px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-150%);
+            background: rgba(30, 30, 30, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 12px;
+            color: #fff;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            z-index: 50;
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: none;
+        }
+
+        .activity-bar.visible {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        .activity-spinner {
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
         }
 
         .spinner {
@@ -594,6 +678,72 @@
             0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
             40% { transform: scale(1); opacity: 1; }
         }
+
+        .image-preview-container {
+            display: flex;
+            gap: 8px;
+            padding: 8px 12px;
+            overflow-x: auto;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .image-preview-container:empty {
+            display: none;
+        }
+        .image-preview-item {
+            position: relative;
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background-size: cover;
+            background-position: center;
+            flex-shrink: 0;
+        }
+        .image-preview-item .remove-btn {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            background: #ef4444;
+            color: white;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 10px;
+        }
+        .attach-btn {
+            background: transparent;
+            border: none;
+            padding: 6px;
+            margin-right: 4px;
+            cursor: pointer;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        .attach-btn:hover { background: rgba(255, 255, 255, 0.05); }
+
+        .user-images {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 6px;
+            justify-content: flex-end;
+        }
+        .user-images img {
+            width: auto;
+            max-width: 200px;
+            height: auto;
+            max-height: 120px;
+            border-radius: 8px;
+            object-fit: contain;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
     </style>
 </head>
 
@@ -640,6 +790,12 @@
         </button>
     </div>
 
+    <!-- Floating Activity Bar -->
+    <div id="activity-bar" class="activity-bar">
+        <div class="activity-spinner"></div>
+        <span id="activity-text">Thinking...</span>
+    </div>
+
     <!-- Chat Area -->
     <div class="chat-area" id="chat-container">
         <div class="empty-state" id="empty-state">
@@ -654,8 +810,13 @@
 
     <!-- Input Area -->
     <div class="input-area">
-        <div class="input-wrapper">
-            <div class="input-row">
+        <div class="input-wrapper" style="flex-direction: column;">
+            <div id="image-preview-container" class="image-preview-container"></div>
+            <div class="input-row" style="padding-top: 6px; padding-bottom: 6px;">
+                <input type="file" id="image-upload" accept="image/*" multiple style="display: none;">
+                <button class="attach-btn" onclick="document.getElementById('image-upload').click()" title="Attach image">
+                    <i data-lucide="paperclip" style="width:18px;height:18px;color:var(--text-muted)"></i>
+                </button>
                 <textarea id="chat-input" rows="1" placeholder="Type a message..." disabled></textarea>
                 <div class="action-btns">
                     <button id="send-btn" class="send-btn" title="Send (Enter)">
@@ -738,6 +899,23 @@
         let currentThinkingDiv = null;
         let currentThinkingRaw = '';
         let currentMode = 'fast';
+        let activeToolStates = new Map();
+
+        // Activity Bar Helper
+        function updateActivityBar() {
+            const bar = document.getElementById('activity-bar');
+            const txt = document.getElementById('activity-text');
+            
+            if (activeToolStates.size === 0) {
+                bar.classList.remove('visible');
+            } else {
+                // Get the most recently added tool label
+                const names = Array.from(activeToolStates.keys());
+                const lastLabel = activeToolStates.get(names[names.length - 1]);
+                txt.textContent = `${lastLabel}...`;
+                bar.classList.add('visible');
+            }
+        }
 
         window.addEventListener('message', event => {
             const msg = event.data;
@@ -777,6 +955,8 @@
                 case 'stopStreaming':
                     setStreamingState(false);
                     collapseThinkingBlock();
+                    activeToolStates.clear();
+                    updateActivityBar();
                     break;
                 case 'toolStart':
                     collapseThinkingBlock();
@@ -785,8 +965,51 @@
                 case 'toolEnd':
                     appendToolBlock(msg.name, msg.args, false, msg.result);
                     break;
+                case 'confirmCommand':
+                    collapseThinkingBlock();
+                    appendCommandConfirmation(msg.id, msg.name, msg.args);
+                    break;
             }
         });
+
+        // Resolve confirmation
+        window.resolveConfirmation = function(id, approved, blockId) {
+            const block = document.getElementById(blockId);
+            if (block) {
+                if (approved) {
+                    block.innerHTML = `<div style="display:flex;align-items:center;gap:8px;color:#10b981;font-size:12px;"><i data-lucide="check" style="width:14px;"></i> Command Approved</div>`;
+                } else {
+                    block.innerHTML = `<div style="display:flex;align-items:center;gap:8px;color:#ef4444;font-size:12px;"><i data-lucide="x" style="width:14px;"></i> Command Rejected</div>`;
+                }
+                lucide.createIcons();
+            }
+            vscode.postMessage({ type: 'resolveConfirmation', id, approved });
+        };
+
+        function appendCommandConfirmation(id, name, args) {
+            const ind = document.getElementById('typing-indicator');
+            const parent = ind ? chatContainer.insertBefore(document.createElement('div'), ind) : chatContainer.appendChild(document.createElement('div'));
+            
+            const blockId = `confirm-${id}`;
+            const command = args.command || args.CommandLine || '';
+            
+            parent.className = 'message assistant';
+            parent.innerHTML = `
+                <div class="tool-block" style="flex-direction: column; align-items: stretch; border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.05);" id="${blockId}">
+                    <div style="display: flex; align-items: center; gap: 8px; color: #fca5a5; font-weight: 600; margin-bottom: 8px;">
+                        <i data-lucide="shield-alert" style="width:16px;"></i> Permission Required
+                    </div>
+                    <div style="font-size: 11px; color: #ccc; margin-bottom: 8px;">Cycy AI wants to run a shell command:</div>
+                    <pre style="margin:0 0 12px 0; padding:8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px;"><code>${command.replace(/</g, '&lt;')}</code></pre>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="primary-btn" style="flex: 1; padding: 8px; font-size: 11px; margin: 0; background: #10b981;" onclick="resolveConfirmation('${id}', true, '${blockId}')">Approve</button>
+                        <button class="badge" style="flex: 1; justify-content: center; padding: 8px; font-size: 11px; border-color: #ef4444; color: #fca5a5;" onclick="resolveConfirmation('${id}', false, '${blockId}')">Reject</button>
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+            scrollToBottom();
+        }
 
         function toggleModeMenu(e) {
             e?.stopPropagation();
@@ -906,10 +1129,49 @@
             currentAssistantMessageDiv = null;
         }
 
+        let pendingImages = [];
+
+        document.getElementById('image-upload').addEventListener('change', function(e) {
+            const files = Array.from(e.target.files);
+            files.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    pendingImages.push(ev.target.result);
+                    renderImagePreviews();
+                };
+                reader.readAsDataURL(file);
+            });
+            this.value = ''; // Reset input
+        });
+
+        function renderImagePreviews() {
+            const container = document.getElementById('image-preview-container');
+            container.innerHTML = '';
+            pendingImages.forEach((b64, i) => {
+                const div = document.createElement('div');
+                div.className = 'image-preview-item';
+                div.style.backgroundImage = `url(${b64})`;
+                div.innerHTML = `<div class="remove-btn" onclick="removeImage(${i})"><i data-lucide="x" style="width:10px;height:10px"></i></div>`;
+                container.appendChild(div);
+            });
+            lucide.createIcons();
+            
+            if (pendingImages.length > 0) {
+                sendBtn.classList.add('active');
+            } else if (inputEl.value.trim() === '') {
+                sendBtn.classList.remove('active');
+            }
+        }
+
+        window.removeImage = function(index) {
+            pendingImages.splice(index, 1);
+            renderImagePreviews();
+        };
+
         inputEl.addEventListener('input', () => {
             inputEl.style.height = '20px';
             inputEl.style.height = Math.min(inputEl.scrollHeight, 160) + 'px';
-            if (inputEl.value.trim().length > 0) {
+            if (inputEl.value.trim().length > 0 || pendingImages.length > 0) {
                 sendBtn.classList.add('active');
             } else {
                 sendBtn.classList.remove('active');
@@ -928,10 +1190,14 @@
 
         function sendMessage() {
             const text = inputEl.value.trim();
-            if (!text || !isConfigured || isStreaming) return;
+            if ((!text && pendingImages.length === 0) || !isConfigured || isStreaming) return;
 
             emptyState.style.display = 'none';
-            appendUserMessage(text);
+            appendUserMessage(text, pendingImages);
+
+            const sentImages = [...pendingImages];
+            pendingImages = [];
+            renderImagePreviews();
 
             inputEl.value = '';
             inputEl.style.height = '20px';
@@ -940,7 +1206,7 @@
             setStreamingState(true);
             currentAssistantMessageDiv = null;
             currentRawContent = '';
-            vscode.postMessage({ type: 'send', message: text, mode: currentMode });
+            vscode.postMessage({ type: 'send', message: text, images: sentImages, mode: currentMode });
         }
 
         function setStreamingState(streaming) {
@@ -961,10 +1227,20 @@
             }
         }
 
-        function appendUserMessage(text) {
+        function appendUserMessage(text, images = []) {
             const div = document.createElement('div');
             div.className = 'message user';
-            div.innerHTML = `<div class="bubble-user">${text.replace(/\n/g, '<br/>')}</div>`;
+            
+            let html = `<div style="display:flex;flex-direction:column;align-items:flex-end;">`;
+            if (text) {
+                html += `<div class="bubble-user">${text.replace(/\n/g, '<br/>')}</div>`;
+            }
+            if (images && images.length > 0) {
+                html += `<div class="user-images">` + images.map(img => `<img src="${img}"/>`).join('') + `</div>`;
+            }
+            html += `</div>`;
+            
+            div.innerHTML = html;
             chatContainer.appendChild(div);
             scrollToBottom();
         }
@@ -1002,33 +1278,97 @@
             const label = getToolLabel(name, args);
             const ind = document.getElementById('typing-indicator');
 
+            let formattedArgs = '';
+            try {
+                formattedArgs = args ? JSON.stringify(args, null, 2) : '';
+            } catch(e) { formattedArgs = String(args); }
+
             if (isStart) {
+                // Activity Bar Tracking
+                activeToolStates.set(`${name}-${Date.now()}`, label.replace(/`/g, ''));
+                updateActivityBar();
+                
                 if (ind) ind.innerHTML = `<div class="dots"><div></div><div></div><div></div></div> ${label.replace(/`/g, '')}...`;
                 
                 const parent = ind ? chatContainer.insertBefore(document.createElement('div'), ind) : chatContainer.appendChild(document.createElement('div'));
                 currentAssistantMessageDiv = null;
                 currentRawContent = '';
 
+                let innerHtml = `
+                    <div class="tool-header" onclick="this.parentElement.classList.toggle('collapsed')">
+                        <div class="spinner"></div> <span>${label}...</span>
+                        <i data-lucide="chevron-down" class="tool-chevron" style="width:14px;height:14px;"></i>
+                    </div>
+                    <div class="tool-details">
+                        <div style="margin-top:8px; margin-bottom: 4px; color: #888;">Arguments:</div>
+                        <pre style="margin:0; padding:8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px;"><code>${formattedArgs.replace(/</g, '&lt;')}</code></pre>
+                        <div class="tool-result-container" style="display:none; margin-top:8px;">
+                            <div style="margin-bottom: 4px; color: #888;">Result:</div>
+                            <pre class="tool-result-pre" style="margin:0; padding:8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; white-space: pre-wrap; word-break: break-all;"><code></code></pre>
+                        </div>
+                    </div>
+                `;
+
                 parent.className = 'message assistant';
                 parent.innerHTML = `
-                    <div class="tool-block" id="tool-${name}-${Date.now()}">
-                        <div class="spinner"></div> <span>${label}...</span>
+                    <div class="tool-block collapsed" id="tool-${name}-${Date.now()}">
+                        ${innerHtml}
                     </div>
                 `;
             } else {
+                // Remove from active states (find first matching name)
+                for (const key of activeToolStates.keys()) {
+                    if (key.startsWith(`${name}-`)) {
+                        activeToolStates.delete(key);
+                        break;
+                    }
+                }
+                updateActivityBar();
+
                 if (ind) ind.innerHTML = `<div class="dots"><div></div><div></div><div></div></div> Thinking...`;
 
                 // Find existing tool blocks and update the last one matching the name
                 const blocks = document.querySelectorAll('.tool-block');
                 if (blocks.length > 0) {
                     const last = blocks[blocks.length - 1];
-                    last.innerHTML = `<i data-lucide="check" style="width:14px;color:#10b981"></i> <span>Completed ${label}</span>`;
+                    const header = last.querySelector('.tool-header');
+                    const details = last.querySelector('.tool-details');
+                    
+                    let extraBtn = '';
+                    if (name === 'run_command') {
+                        extraBtn = `<button class="badge" style="margin-left: 8px; cursor: pointer; border-color: rgba(59, 130, 246, 0.4);" onclick="event.stopPropagation(); vscode.postMessage({type: 'showTerminal'})">Terminal</button>`;
+                    }
+                    
+                    const isError = result && typeof result === 'string' && result.toLowerCase().includes('error:');
+                    
+                    if (header) {
+                        if (isError) {
+                            header.innerHTML = `<i data-lucide="x-circle" style="width:14px;color:#ef4444"></i> <span style="color:#ef4444">Failed ${label}</span>${extraBtn}<i data-lucide="chevron-down" class="tool-chevron" style="width:14px;height:14px;"></i>`;
+                        } else {
+                            header.innerHTML = `<i data-lucide="check" style="width:14px;color:#10b981"></i> <span>Completed ${label}</span>${extraBtn}<i data-lucide="chevron-down" class="tool-chevron" style="width:14px;height:14px;"></i>`;
+                        }
+                    }
+                    
+                    if (details) {
+                        const resultContainer = details.querySelector('.tool-result-container');
+                        const resultPre = details.querySelector('.tool-result-pre code');
+                        if (resultContainer && resultPre) {
+                            resultContainer.style.display = 'block';
+                            let safeResult = String(result).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                            if (isError) {
+                                resultPre.parentElement.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+                                resultPre.style.color = '#fca5a5';
+                            }
+                            resultPre.innerHTML = safeResult;
+                        }
+                    }
                     
                     // Special case: Plan Mode approval
                     const filePath = args?.TargetFile || args?.AbsolutePath || args?.path || '';
                     if (currentMode === 'plan' && (filePath === 'plan.md' || filePath.endsWith('/plan.md'))) {
                         const approvalDiv = document.createElement('div');
                         approvalDiv.style.marginTop = '10px';
+                        approvalDiv.style.padding = '0 14px 10px 14px';
                         approvalDiv.style.display = 'flex';
                         approvalDiv.style.gap = '8px';
                         approvalDiv.innerHTML = `

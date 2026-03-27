@@ -44,11 +44,22 @@ class FileReadingTools {
         try {
             const content = fs.readFileSync(filePath, 'utf-8');
             const lines = content.split('\n');
-            let result = '';
+            const noRangeSpecified = !startLine && !endLine;
             let s = startLine ? Math.max(1, startLine) : 1;
             let e = endLine ? Math.min(lines.length, endLine) : lines.length;
+            // If no range was specified and file is large, cap it
+            let wasCapped = false;
+            if (noRangeSpecified && lines.length > FileReadingTools.MAX_LINES_DEFAULT) {
+                e = FileReadingTools.MAX_LINES_DEFAULT;
+                wasCapped = true;
+            }
+            let result = '';
             for (let i = s - 1; i < e; i++) {
                 result += `${i + 1}\t${lines[i]}\n`;
+            }
+            if (wasCapped) {
+                result += `\n--- OUTPUT CAPPED at ${FileReadingTools.MAX_LINES_DEFAULT} of ${lines.length} total lines ---\n`;
+                result += `To see more, call view_file again with startLine and endLine arguments (e.g., startLine: ${FileReadingTools.MAX_LINES_DEFAULT + 1}, endLine: ${Math.min(lines.length, FileReadingTools.MAX_LINES_DEFAULT + 200)}).\n`;
             }
             return result;
         }
@@ -102,4 +113,5 @@ class FileReadingTools {
     }
 }
 exports.FileReadingTools = FileReadingTools;
+FileReadingTools.MAX_LINES_DEFAULT = 200;
 //# sourceMappingURL=FileReadingTools.js.map

@@ -93,7 +93,15 @@ If the user asks you to implement a multistep plan:
 5. THINKING: Always show your step-by-step reasoning before taking any action. You MUST wrap your private reasoning completely inside <think> and </think> tags. The user CANNOT see what is inside <think> tags. Your final response or question to the user MUST be OUTSIDE the <think> tags.
 6. EXPLORE SMARTLY: You already have the workspace directory tree in your context. Do not use 'list_dir' on the project root. When exploring unknown files, ALWAYS use 'view_file_outline' first to get the structural layout before committing to reading the entire file with 'view_file'.
 7. PIN CONTEXT: If you are tasked with heavily modifying a specific file or need to frequently reference a core utility file, proactively use 'pin_file' to inject it into your permanent memory. Use 'unpin_file' when you no longer need it.
-8. BUILD KNOWLEDGE: If you discover a strict architectural pattern in the codebase, or if the user explicitly gives you a project rule (e.g., 'we use Tailwind', 'all APIs must be wrapped in a specific JSON'), you MUST proactively use the 'update_project_knowledge' tool to memorize it.`;
+8. BUILD KNOWLEDGE: If you discover a strict architectural pattern in the codebase, or if the user explicitly gives you a project rule (e.g., 'we use Tailwind', 'all APIs must be wrapped in a specific JSON'), you MUST proactively use the 'update_project_knowledge' tool to memorize it.
+9. VISION CAPABILITIES: The user can attach screenshots to their messages. You are able to see and analyze them natively for visual debugging, UI evaluation, and understanding errors!
+10. TARGETED EDITS ONLY: When you need to make a small change to an existing file (e.g., fix a CSS path, update a variable, change one line), you MUST use 'replace_file_content' with the exact text to find and replace. NEVER rewrite an entire file using 'write_to_file' just to change a few characters or lines.
+11. SMART FILE READING: The 'view_file' tool caps output at 200 lines by default. If you only need to check a header or link in a file, use startLine and endLine to read just those lines (e.g., startLine: 1, endLine: 20 for the HTML head). Do NOT read an entire 500-line file when you only need 10 lines.
+12. CORRECT TOOL ARGUMENTS: Always use the exact argument names documented in the tool schemas. The argument for file path is always "path" (not "file_path", "TargetFile", or "filename"). The arguments for replace_file_content are "path", "targetText", and "replacementText".
+13. HONESTY ABOUT ERRORS: If a tool call returns an error message (e.g., "File not found", "Error writing to file"), you MUST report this failure to the user honestly. NEVER claim that you successfully completed an action if the tool returned an error. Instead, explain the error and try a different approach.
+14. SELF-CORRECTION: If a tool call fails, carefully re-read the error message. It often tells you exactly what went wrong (e.g., missing argument, wrong path). Fix the specific issue and retry with the corrected arguments. Do NOT try a completely different tool or approach unless the original approach is fundamentally wrong.
+15. VERIFY YOUR WORK: After using 'write_to_file' or 'replace_file_content' to create or edit a file, ALWAYS use 'view_file' with startLine 1 and endLine 5 to confirm the content was actually written. Only tell the user the task is done AFTER verification succeeds.
+16. TERMINAL OBSERVATION: When you use 'run_command' (especially for long-running scripts like npm install or dev servers), the process runs in the background. You MUST proactively use the 'command_status' tool to check its output, verify it executed successfully, and read any error messages it produced.`;
 
         if (mode === 'plan') {
             prompt += `
@@ -118,6 +126,7 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
     private _onStreamingComplete = new vscode.EventEmitter<void>();
     private _onToolExecutionStart = new vscode.EventEmitter<{name: string, args: any}>();
     private _onToolExecutionEnd = new vscode.EventEmitter<{name: string, args: any, result: string}>();
+    private _onConfirmationNeeded = new vscode.EventEmitter<{id: string, name: string, args: any}>();
     
     public readonly onToken = this._onToken.event;
     public readonly onThinkingToken = this._onThinkingToken.event;
@@ -125,13 +134,22 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
     public readonly onStreamingComplete = this._onStreamingComplete.event;
     public readonly onToolExecutionStart = this._onToolExecutionStart.event;
     public readonly onToolExecutionEnd = this._onToolExecutionEnd.event;
+    public readonly onConfirmationNeeded = this._onConfirmationNeeded.event;
 
     private _messageHistory: any[] = [];
     private _isStreaming = false;
     private _abortController: AbortController | null = null;
     private _toolExecutor = new ToolExecutor();
 
-    constructor(private readonly settingsManager: SettingsManager) {}
+    constructor(private readonly settingsManager: SettingsManager) {
+        this._toolExecutor.onConfirmationNeeded(event => {
+            this._onConfirmationNeeded.fire(event);
+        });
+    }
+    
+    public resolveConfirmation(id: string, approved: boolean) {
+        this._toolExecutor.resolveConfirmation(id, approved);
+    }
 
     public resetHistory() {
         this._messageHistory = [];
@@ -181,7 +199,7 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
         }
     }
 
-    public async sendMessage(message: string, mode: 'fast' | 'plan' = 'fast') {
+    public async sendMessage(message: string, mode: 'fast' | 'plan' = 'fast', images: string[] = []) {
         if (this._isStreaming) return;
         
         const provider = this.settingsManager.getProvider();
@@ -198,7 +216,7 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
         this._abortController = new AbortController();
 
         // Push user message
-        this._messageHistory.push({ role: 'user', content: message });
+        this._messageHistory.push({ role: 'user', content: message, images });
 
         try {
             if (provider === 'gemini') {
@@ -221,10 +239,23 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
     private async streamGemini(model: string, key: string, messages: any[], mode: 'fast' | 'plan' = 'fast') {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?key=${key}&alt=sse`;
         
-        const geminiMessages = messages.map(m => ({
-            role: m.role === 'assistant' ? 'model' : m.role === 'tool' ? 'function' : 'user',
-            parts: [{ text: m.content }] // Simplified for text-only history stub
-        }));
+        const geminiMessages = messages.map(m => {
+            const parts: any[] = [{ text: m.content || " " }];
+            if (m.images && m.images.length > 0) {
+                m.images.forEach((b64: string) => {
+                    const match = b64.match(/^data:(image\/\w+);base64,(.*)$/);
+                    if (match) {
+                        parts.push({
+                            inlineData: { mimeType: match[1], data: match[2] }
+                        });
+                    }
+                });
+            }
+            return {
+                role: m.role === 'assistant' ? 'model' : m.role === 'tool' ? 'function' : 'user',
+                parts
+            };
+        });
 
         const body: any = {
             systemInstruction: { parts: [{ text: this.getSystemPrompt(mode) }]},
@@ -304,11 +335,25 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
             }
         }));
 
+        const openAIMessages = messages.map(m => {
+            if (m.images && m.images.length > 0 && m.role === 'user') {
+                const contentParts: any[] = [{ type: 'text', text: m.content || " " }];
+                m.images.forEach((b64: string) => {
+                    contentParts.push({
+                        type: 'image_url',
+                        image_url: { url: b64 }
+                    });
+                });
+                return { role: m.role, content: contentParts };
+            }
+            return { role: m.role, content: m.content || " " };
+        });
+
         const body: any = {
             model: model,
             messages: [
                 { role: 'system', content: this.getSystemPrompt(mode) },
-                ...messages
+                ...openAIMessages
             ],
             stream: true
         };
@@ -356,25 +401,104 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
 
             // Execute all tools and collect results
             for (const [_, call] of pendingToolCalls.entries()) {
-                let args;
-                try {
-                    args = JSON.parse(call.arguments || '{}');
-                } catch (e) {
-                    args = {}; // fallback if broken JSON
+                let argsString = call.arguments || '';
+                
+                // Fallback: If arguments are empty or "{}" but content contains JSON (e.g., Llama 3 API bug)
+                const isArgsEmpty = !argsString.trim() || argsString.trim() === '{}' || argsString.trim() === 'null';
+                if (isArgsEmpty && fullRawContent.includes('{')) {
+                    // Custom bracket matcher to extract the last valid JSON object from content
+                    let bestJson = '';
+                    for (let i = fullRawContent.lastIndexOf('{'); i >= 0; i--) {
+                        if (fullRawContent[i] === '{') {
+                            let depth = 0;
+                            for (let j = i; j < fullRawContent.length; j++) {
+                                if (fullRawContent[j] === '{') depth++;
+                                if (fullRawContent[j] === '}') {
+                                    depth--;
+                                    if (depth === 0) {
+                                        const possibleJson = fullRawContent.substring(i, j + 1);
+                                        if (possibleJson.includes(call.name) || possibleJson.includes('arguments') || possibleJson.includes('path')) {
+                                            bestJson = possibleJson;
+                                        }
+                                        break; // Found matching closing brace
+                                    }
+                                }
+                            }
+                            if (bestJson) break;
+                        }
+                    }
+                    if (bestJson) {
+                        argsString = bestJson;
+                    } else {
+                        // Fallback to simple regex if bracket matching fails
+                        const contentMatch = fullRawContent.match(/\{[\s\S]*\}/);
+                        if (contentMatch) argsString = contentMatch[0];
+                    }
                 }
 
-                this._onToolExecutionStart.fire({ name: call.name, args });
+                // Clean up common LLM hallucinations in tool arguments
+                argsString = argsString.replace(/<\/tool_call>[\s\S]*$/, '');
+                argsString = argsString.replace(/^[\s\S]*?<tool_call>/, '');
+                argsString = argsString.replace(/```json/g, '').replace(/```/g, '').trim();
 
-                // Execute
-                const result = await this._toolExecutor.executeTool(call.name, args);
-                this._onToolExecutionEnd.fire({ name: call.name, args, result });
+                let args;
+                try {
+                    // Pre-process common hallucinated JSON issues: unescaped newlines and single quotes
+                    let cleanArgsString = argsString
+                        .replace(/(?!\\)\n/g, '\\n') // Fix unescaped newlines inside strings
+                        .replace(/\'/g, '\\"');      // Some LLMs output single quotes instead of double
+
+                    args = JSON.parse(cleanArgsString || '{}');
+                    // Handle NVIDIA NIM Llama 3 edge case where JSON includes 'arguments/parameters' root keys
+                    if (args && (args.arguments || args.parameters || args.args) && Object.keys(args).length <= 3) {
+                        const innerArgs = args.arguments || args.parameters || args.args;
+                        try {
+                            args = typeof innerArgs === 'string' ? JSON.parse(innerArgs) : innerArgs;
+                        } catch (e) {
+                            args = innerArgs;
+                        }
+                    }
+                } catch (e) {
+                    // One more try: extract just the JSON object and strip aggressive markdown
+                    const match = argsString.match(/\{[\s\S]*\}/);
+                    if (match) {
+                        try {
+                            let cleanMatch = match[0]
+                                .replace(/(?!\\)\n/g, '\\n')
+                                .replace(/\'/g, '\\"');
+                                
+                            args = JSON.parse(cleanMatch);
+                            if (args && (args.arguments || args.parameters || args.args) && Object.keys(args).length <= 3) {
+                                const innerArgs = args.arguments || args.parameters || args.args;
+                                args = typeof innerArgs === 'string' ? JSON.parse(innerArgs) : innerArgs;
+                            }
+                        } catch (e2) {
+                            console.error(`Cycy UI: Tool Arg Parsing Failed completely. Raw: ${argsString}`);
+                            args = { _parseError: true, raw: argsString };
+                        }
+                    } else {
+                        console.error(`Cycy UI: No JSON found in Tool Args. Raw: ${argsString}`);
+                        args = { _parseError: true, raw: argsString };
+                    }
+                }
+
+                this._onToolExecutionStart.fire({ name: call.name, args: args && !args._parseError ? args : {} });
+
+                let result;
+                if (args && args._parseError) {
+                    result = `Tool Execution Error: Failed to parse JSON arguments for tool '${call.name}'. You output invalid JSON. Make sure to output valid JSON arguments without extra text or markdown. Raw output was: ${args.raw}`;
+                } else {
+                    result = await this._toolExecutor.executeTool(call.name, args);
+                }
+                
+                this._onToolExecutionEnd.fire({ name: call.name, args: args && !args._parseError ? args : {}, result });
 
                 // Truncate very large results to avoid exceeding API limits
                 const truncatedResult = typeof result === 'string' && result.length > 8000 
                     ? result.substring(0, 8000) + '\n...(truncated)' 
                     : String(result);
 
-                toolResults.push({ name: call.name, result: truncatedResult, parsedArgs: args });
+                toolResults.push({ name: call.name, result: truncatedResult, parsedArgs: args && !args._parseError ? args : {} });
             }
 
             // Always use native OpenAI format for all providers that support streamOpenAI

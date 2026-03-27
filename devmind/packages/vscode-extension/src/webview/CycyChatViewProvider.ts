@@ -39,6 +39,10 @@ export class CycyChatViewProvider implements vscode.WebviewViewProvider {
         this._aiService.onToolExecutionEnd(({ name, args, result }: { name: string, args: any, result: string }) => {
             this._view?.webview.postMessage({ type: 'toolEnd', name, args, result });
         });
+        
+        this._aiService.onConfirmationNeeded(({ id, name, args }: { id: string, name: string, args: any }) => {
+            this._view?.webview.postMessage({ type: 'confirmCommand', id, name, args });
+        });
     }
 
     public resolveWebviewView(
@@ -57,8 +61,19 @@ export class CycyChatViewProvider implements vscode.WebviewViewProvider {
 
         webviewView.webview.onDidReceiveMessage(async (data) => {
             switch (data.type) {
+                case 'resolveConfirmation':
+                    this._aiService.resolveConfirmation(data.id, data.approved);
+                    break;
+                case 'showTerminal':
+                    const terminal = vscode.window.terminals.find(t => t.name === 'Cycy AI Exec');
+                    if (terminal) {
+                        terminal.show(false);
+                    } else {
+                        vscode.window.showInformationMessage('No active terminal is running.');
+                    }
+                    break;
                 case 'send':
-                    this._aiService.sendMessage(data.message, data.mode);
+                    this._aiService.sendMessage(data.message, data.mode, data.images);
                     break;
                 case 'stop':
                     this._aiService.stop();

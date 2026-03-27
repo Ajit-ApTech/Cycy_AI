@@ -39,58 +39,85 @@ const cp = __importStar(require("child_process"));
 const crypto = __importStar(require("crypto"));
 class TerminalTools {
     constructor() {
+        this.writeEmitter = new vscode.EventEmitter();
+        this.terminal = null;
         this.commands = new Map();
+        this.terminalBuffer = "";
+        this.isPtyOpen = false;
+    }
+    logToTerminal(text) {
+        this.terminalBuffer += text;
+        if (this.isPtyOpen) {
+            this.writeEmitter.fire(text);
+        }
+    }
+    initTerminal() {
+        if (!this.terminal) {
+            this.isPtyOpen = false;
+            const pty = {
+                onDidWrite: this.writeEmitter.event,
+                open: () => {
+                    this.isPtyOpen = true;
+                    this.writeEmitter.fire(this.terminalBuffer);
+                },
+                close: () => {
+                    this.terminal = null;
+                    this.isPtyOpen = false;
+                }
+            };
+            this.terminal = vscode.window.createTerminal({ name: 'Cycy AI Exec', pty });
+        }
     }
     async runCommand(command) {
-        // Send complex commands to the background system
-        const cmdId = crypto.randomUUID();
+        this.initTerminal();
         const workspaceDir = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
-        const proc = cp.exec(command, { cwd: workspaceDir });
-        const output = { stdout: '', stderr: '', status: 'running' };
-        this.commands.set(cmdId, { proc, output });
-        proc.stdout?.on('data', data => output.stdout += data);
-        proc.stderr?.on('data', data => output.stderr += data);
-        proc.on('close', code => {
-            output.status = 'done';
-            output.exitCode = code;
+        this.logToTerminal(`\x1b[32m$ ${command}\x1b[0m\r\n`);
+        return new Promise((resolve) => {
+            let outputBody = "";
+            let errorBody = "";
+            const proc = cp.spawn(command, { cwd: workspaceDir, shell: true });
+            const cmdId = crypto.randomUUID();
+            this.commands.set(cmdId, { proc });
+            proc.stdout?.on('data', data => {
+                const chunk = data.toString();
+                outputBody += chunk;
+                this.logToTerminal(chunk.replace(/\n/g, '\r\n'));
+            });
+            proc.stderr?.on('data', data => {
+                const chunk = data.toString();
+                errorBody += chunk;
+                this.logToTerminal(chunk.replace(/\n/g, '\r\n'));
+            });
+            proc.on('close', code => {
+                this.commands.delete(cmdId);
+                const result = `Command: ${command}\nExit Code: ${code}\nSTDOUT:\n${outputBody}\nSTDERR:\n${errorBody}`;
+                this.logToTerminal(`\r\n\x1b[33m[Completed with code ${code}]\x1b[0m\r\n\r\n`);
+                resolve(result);
+            });
+            proc.on('error', err => {
+                this.commands.delete(cmdId);
+                const result = `Process Error: ${err.message}\nSTDOUT:\n${outputBody}\nSTDERR:\n${errorBody}`;
+                this.logToTerminal(`\r\n\x1b[31m[Error: ${err.message}]\x1b[0m\r\n\r\n`);
+                resolve(result);
+            });
         });
-        proc.on('error', err => {
-            output.status = 'error';
-            output.stderr += `\nProcess error: ${err.message}`;
-        });
-        // Wait a small bit to see if it finishes instantly
-        await new Promise(res => setTimeout(res, 500));
-        if (output.status !== 'running') {
-            return this.formatOutput(cmdId, output);
-        }
-        return `Background command ID: ${cmdId}\nUse 'command_status' tool to poll.`;
     }
     async commandStatus(cmdId) {
-        const cmd = this.commands.get(cmdId);
-        if (!cmd)
-            return `Error: Unknown command ID ${cmdId}`;
-        return this.formatOutput(cmdId, cmd.output);
+        return `Error: command_status is deprecated. Commands now run synchronously.`;
     }
     async sendCommandInput(cmdId, input) {
         const cmd = this.commands.get(cmdId);
         if (!cmd)
-            return `Error: Unknown command ID ${cmdId}`;
-        if (cmd.output.status !== 'running') {
-            return `Error: Process ${cmdId} is no longer running (Status: ${cmd.output.status})`;
-        }
-        if (!cmd.proc.stdin) {
-            return `Error: Stdin is not available for process ${cmdId}`;
-        }
+            return `Error: Unknown command ID ${cmdId} or process already finished.`;
+        if (!cmd.proc.stdin)
+            return `Error: Stdin is not available.`;
         try {
             cmd.proc.stdin.write(input);
-            return `Successfully sent input to process ${cmdId}`;
+            return `Successfully sent input to process.`;
         }
         catch (error) {
             return `Error sending input: ${error.message}`;
         }
-    }
-    formatOutput(id, output) {
-        return `Command ID: ${id}\nStatus: ${output.status}\nExit Code: ${output.exitCode ?? 'N/A'}\n\nSTDOUT:\n${output.stdout}\n\nSTDERR:\n${output.stderr}`;
     }
 }
 exports.TerminalTools = TerminalTools;
