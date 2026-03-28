@@ -9,10 +9,10 @@ export class AIService {
         if (depth > maxDepth) return '';
         let tree = '';
         const excludeDirs = new Set(['node_modules', '.git', 'out', 'dist', 'build', '.vscode', '.cycy']);
-        
+
         try {
             const items = fs.readdirSync(dirPath, { withFileTypes: true });
-            
+
             // Sort: directories first, then files
             items.sort((a, b) => {
                 if (a.isDirectory() && !b.isDirectory()) return -1;
@@ -24,11 +24,11 @@ export class AIService {
                 // Skip hidden files and excluded directories
                 if (item.name.startsWith('.') && item.name !== '.gitignore' && item.name !== '.env.example') continue;
                 if (item.isDirectory() && excludeDirs.has(item.name)) continue;
-                
+
                 const indent = '  '.repeat(depth);
                 const prefix = item.isDirectory() ? '📂 ' : '📄 ';
                 tree += `${indent}${prefix}${item.name}\n`;
-                
+
                 if (item.isDirectory()) {
                     tree += this.generateWorkspaceTree(path.join(dirPath, item.name), depth + 1, maxDepth);
                 }
@@ -42,7 +42,7 @@ export class AIService {
     private getSystemPrompt(mode: 'fast' | 'plan' = 'fast'): string {
         const workspaceFolders = vscode.workspace.workspaceFolders;
         const workspacePath = workspaceFolders && workspaceFolders.length > 0 ? workspaceFolders[0].uri.fsPath : 'No workspace open';
-        
+
         let workspaceTree = '';
         if (workspacePath !== 'No workspace open') {
             const treeLimit = this.generateWorkspaceTree(workspacePath, 0, 3);
@@ -58,7 +58,7 @@ export class AIService {
                 try {
                     const content = fs.readFileSync(filePath, 'utf-8');
                     return `--- Start of Pinned File: ${filePath} ---\n${content}\n--- End of Pinned File ---`;
-                } catch(e) {
+                } catch (e) {
                     return `--- Error reading pinned file: ${filePath} ---`;
                 }
             }).join('\n\n');
@@ -71,7 +71,7 @@ export class AIService {
                 try {
                     const knContent = fs.readFileSync(knPath, 'utf-8');
                     knowledgeContext = '\n\nPROJECT KNOWLEDGE BASE:\nThe following rules and patterns MUST be followed for this project:\n' + knContent;
-                } catch (e) {}
+                } catch (e) { }
             }
         }
 
@@ -124,10 +124,10 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
     private _onThinkingToken = new vscode.EventEmitter<string>();
     private _onError = new vscode.EventEmitter<string>();
     private _onStreamingComplete = new vscode.EventEmitter<void>();
-    private _onToolExecutionStart = new vscode.EventEmitter<{name: string, args: any}>();
-    private _onToolExecutionEnd = new vscode.EventEmitter<{name: string, args: any, result: string}>();
-    private _onConfirmationNeeded = new vscode.EventEmitter<{id: string, name: string, args: any}>();
-    
+    private _onToolExecutionStart = new vscode.EventEmitter<{ name: string, args: any }>();
+    private _onToolExecutionEnd = new vscode.EventEmitter<{ name: string, args: any, result: string }>();
+    private _onConfirmationNeeded = new vscode.EventEmitter<{ id: string, name: string, args: any }>();
+
     public readonly onToken = this._onToken.event;
     public readonly onThinkingToken = this._onThinkingToken.event;
     public readonly onError = this._onError.event;
@@ -146,7 +146,7 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
             this._onConfirmationNeeded.fire(event);
         });
     }
-    
+
     public resolveConfirmation(id: string, approved: boolean) {
         this._toolExecutor.resolveConfirmation(id, approved);
     }
@@ -184,13 +184,13 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
         try {
             const resp = await fetch(url, { headers });
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-            
+
             const data: any = await resp.json();
-            
+
             // Map the response
             if (provider === 'gemini') return data.models?.map((m: any) => m.name.replace('models/', '')) || [];
             if (provider === 'ollama') return data.models?.map((m: any) => m.name) || [];
-            
+
             // OpenAI compatible (OpenAI, Groq, NVIDIA)
             return data.data?.map((m: any) => m.id) || [];
         } catch (e: any) {
@@ -201,7 +201,7 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
 
     public async sendMessage(message: string, mode: 'fast' | 'plan' = 'fast', images: string[] = []) {
         if (this._isStreaming) return;
-        
+
         const provider = this.settingsManager.getProvider();
         const model = this.settingsManager.getModel() || 'gemini-2.0-flash';
         const apiKey = await this.settingsManager.getApiKey(provider);
@@ -238,7 +238,7 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
 
     private async streamGemini(model: string, key: string, messages: any[], mode: 'fast' | 'plan' = 'fast') {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?key=${key}&alt=sse`;
-        
+
         const geminiMessages = messages.map(m => {
             const parts: any[] = [{ text: m.content || " " }];
             if (m.images && m.images.length > 0) {
@@ -258,7 +258,7 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
         });
 
         const body: any = {
-            systemInstruction: { parts: [{ text: this.getSystemPrompt(mode) }]},
+            systemInstruction: { parts: [{ text: this.getSystemPrompt(mode) }] },
             contents: geminiMessages,
             generationConfig: { temperature: 0.2 }
         };
@@ -298,16 +298,16 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
         if (pendingFunctionCall && !this._abortController?.signal.aborted) {
             const args = pendingFunctionCall.args;
             this._onToolExecutionStart.fire({ name: pendingFunctionCall.name, args });
-            
+
             // Execute
             const result = await this._toolExecutor.executeTool(pendingFunctionCall.name, args);
-            
+
             this._onToolExecutionEnd.fire({ name: pendingFunctionCall.name, args, result });
-            
+
             // Append back to history and recurse
             this._messageHistory.push({ role: 'assistant', content: (fullRawContent ? fullRawContent + '\n' : '') + `[Tool Call: ${pendingFunctionCall.name}]` });
             this._messageHistory.push({ role: 'tool', content: `Tool Result for ${pendingFunctionCall.name}:\n${result}` });
-            
+
             // Recurse (Agentic Loop)
             if (!this._abortController?.signal.aborted) {
                 await this.streamGemini(model, key, this._messageHistory, mode);
@@ -322,7 +322,7 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
             nvidia: 'https://integrate.api.nvidia.com/v1/models', // corrected to models prefix if needed, using chat/completions usually
             ollama: 'http://localhost:11434/v1/chat/completions'
         };
-        
+
         // Correcting common base paths if model names are used in URL for some providers like NVIDIA NIM
         if (provider === 'nvidia') urls.nvidia = 'https://integrate.api.nvidia.com/v1/chat/completions';
 
@@ -355,7 +355,8 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
                 { role: 'system', content: this.getSystemPrompt(mode) },
                 ...openAIMessages
             ],
-            stream: true
+            stream: true,
+            ...(provider === 'ollama' && { think: true })
         };
 
         // Ollama usually requires experimental or strict format for tools, but assuming standard OpenAI spec
@@ -383,7 +384,7 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
         const fullRawContent = await this.readSSEStreamOpenAI(response, (text, toolCallChunk) => {
             if (this._abortController?.signal.aborted) return;
             if (text) this._onToken.fire(text);
-            
+
             if (toolCallChunk) {
                 const { index, id, function: fn } = toolCallChunk;
                 if (!pendingToolCalls.has(index)) {
@@ -402,7 +403,7 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
             // Execute all tools and collect results
             for (const [_, call] of pendingToolCalls.entries()) {
                 let argsString = call.arguments || '';
-                
+
                 // Fallback: If arguments are empty or "{}" but content contains JSON (e.g., Llama 3 API bug)
                 const isArgsEmpty = !argsString.trim() || argsString.trim() === '{}' || argsString.trim() === 'null';
                 if (isArgsEmpty && fullRawContent.includes('{')) {
@@ -466,7 +467,7 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
                             let cleanMatch = match[0]
                                 .replace(/(?!\\)\n/g, '\\n')
                                 .replace(/\'/g, '\\"');
-                                
+
                             args = JSON.parse(cleanMatch);
                             if (args && (args.arguments || args.parameters || args.args) && Object.keys(args).length <= 3) {
                                 const innerArgs = args.arguments || args.parameters || args.args;
@@ -490,12 +491,12 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
                 } else {
                     result = await this._toolExecutor.executeTool(call.name, args);
                 }
-                
+
                 this._onToolExecutionEnd.fire({ name: call.name, args: args && !args._parseError ? args : {}, result });
 
                 // Truncate very large results to avoid exceeding API limits
-                const truncatedResult = typeof result === 'string' && result.length > 8000 
-                    ? result.substring(0, 8000) + '\n...(truncated)' 
+                const truncatedResult = typeof result === 'string' && result.length > 8000
+                    ? result.substring(0, 8000) + '\n...(truncated)'
                     : String(result);
 
                 toolResults.push({ name: call.name, result: truncatedResult, parsedArgs: args && !args._parseError ? args : {} });
@@ -504,7 +505,7 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
             // Always use native OpenAI format for all providers that support streamOpenAI
             // Push the assistant tool_calls message once
             const toolCallsMsg: any = { role: 'assistant', content: fullRawContent || '', tool_calls: [] };
-            
+
             let i = 0;
             for (const [_, c] of pendingToolCalls.entries()) {
                 toolCallsMsg.tool_calls.push({
@@ -529,7 +530,7 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
                 });
                 j++;
             }
-            
+
             // Recurse (Agentic Loop)
             if (!this._abortController?.signal.aborted) {
                 await this.streamOpenAI(provider, model, key, this._messageHistory, mode);
@@ -558,7 +559,7 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
             const { done, value } = await reader.read();
             if (done) break;
             buffer += decoder.decode(value, { stream: true });
-            
+
             const lines = buffer.split('\n');
             buffer = lines.pop() || '';
 
@@ -578,7 +579,7 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
                                     isThinking = result.isThinking;
                                     cumulativeContent = result.cumulativeContent;
                                     processedLength = result.processedLength;
-                                    
+
                                     if (result.tokens.length > 0) {
                                         for (const t of result.tokens) {
                                             if (t.type === 'thought') this._onThinkingToken.fire(t.text);
@@ -589,19 +590,28 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
                                 if (part.thought) {
                                     this._onThinkingToken.fire(part.thought);
                                 }
+                                if (part.reasoning_content) {
+                                    this._onThinkingToken.fire(part.reasoning_content);
+                                }
+                                if (part.reasoning) {
+                                    this._onThinkingToken.fire(part.reasoning);
+                                }
+                                if (part.thinking) {
+                                    this._onThinkingToken.fire(part.thinking);
+                                }
                                 if (part.functionCall) {
                                     onToken('', part.functionCall);
                                 }
                             }
                         }
-                    } catch (e) {}
+                    } catch (e) { }
                 }
             }
         }
-        
+
         // Final flush
         this.flushThinkingTags(onToken, isThinking, cumulativeContent, processedLength);
-        
+
         return fullRawContent;
     }
 
@@ -624,7 +634,7 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
             const { done, value } = await reader.read();
             if (done) break;
             buffer += decoder.decode(value, { stream: true });
-            
+
             const lines = buffer.split('\n');
             buffer = lines.pop() || '';
 
@@ -635,14 +645,14 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
                     try {
                         const parsed = JSON.parse(data);
                         const delta = parsed.choices?.[0]?.delta;
-                        
+
                         if (delta?.content) {
                             fullRawContent += delta.content;
                             const result = this.parseThinkingTags(delta.content, isThinking, cumulativeContent, processedLength);
                             isThinking = result.isThinking;
                             cumulativeContent = result.cumulativeContent;
                             processedLength = result.processedLength;
-                            
+
                             for (const t of result.tokens) {
                                 if (t.type === 'thought') {
                                     this._onThinkingToken.fire(t.text);
@@ -655,20 +665,26 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
                         if (delta?.reasoning_content) {
                             this._onThinkingToken.fire(delta.reasoning_content);
                         }
-                        
+                        if (delta?.reasoning) {
+                            this._onThinkingToken.fire(delta.reasoning);
+                        }
+                        if (delta?.thinking) {
+                            this._onThinkingToken.fire(delta.thinking);
+                        }
+
                         if (delta?.tool_calls) {
                             for (const call of delta.tool_calls) {
                                 onToken('', call);
                             }
                         }
-                    } catch (e) {}
+                    } catch (e) { }
                 }
             }
         }
 
         // Final flush
         this.flushThinkingTags(onToken, isThinking, cumulativeContent, processedLength);
-        
+
         return fullRawContent;
     }
 
@@ -687,14 +703,14 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
                     // Everything before <think> is text
                     const before = cumulativeContent.substring(processedLength, startIdx);
                     if (before) tokens.push({ type: 'text', text: before });
-                    
+
                     isThinking = true;
                     processedLength = startIdx + THINK_START.length;
                 } else {
                     // No full <think> tag found. Check for partial tag at the end.
                     const lastOpen = cumulativeContent.lastIndexOf('<');
                     let safeEnd = cumulativeContent.length;
-                    
+
                     if (lastOpen >= processedLength) {
                         const tail = lower.substring(lastOpen);
                         if (THINK_START.startsWith(tail)) {
@@ -706,7 +722,7 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
                         tokens.push({ type: 'text', text: cumulativeContent.substring(processedLength, safeEnd) });
                         processedLength = safeEnd;
                     }
-                    break; 
+                    break;
                 }
             } else {
                 const lower = cumulativeContent.toLowerCase();
@@ -716,14 +732,14 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
                     // Everything before </think> is thought
                     const thought = cumulativeContent.substring(processedLength, endIdx);
                     if (thought) tokens.push({ type: 'thought', text: thought });
-                    
+
                     isThinking = false;
                     processedLength = endIdx + THINK_END.length;
                 } else {
                     // No full </think> tag found. Check for partial tag at the end.
                     const lastOpen = cumulativeContent.lastIndexOf('<');
                     let safeEnd = cumulativeContent.length;
-                    
+
                     if (lastOpen >= processedLength) {
                         const tail = lower.substring(lastOpen);
                         if (THINK_END.startsWith(tail)) {
@@ -739,7 +755,7 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
                 }
             }
         }
-        
+
         return { isThinking, cumulativeContent, processedLength, tokens };
     }
 

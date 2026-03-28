@@ -360,7 +360,8 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
                 { role: 'system', content: this.getSystemPrompt(mode) },
                 ...openAIMessages
             ],
-            stream: true
+            stream: true,
+            ...(provider === 'ollama' && { think: true })
         };
         // Ollama usually requires experimental or strict format for tools, but assuming standard OpenAI spec
         if (tools.length > 0 && provider !== 'ollama') {
@@ -584,6 +585,15 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
                                 if (part.thought) {
                                     this._onThinkingToken.fire(part.thought);
                                 }
+                                if (part.reasoning_content) {
+                                    this._onThinkingToken.fire(part.reasoning_content);
+                                }
+                                if (part.reasoning) {
+                                    this._onThinkingToken.fire(part.reasoning);
+                                }
+                                if (part.thinking) {
+                                    this._onThinkingToken.fire(part.thinking);
+                                }
                                 if (part.functionCall) {
                                     onToken('', part.functionCall);
                                 }
@@ -644,6 +654,12 @@ You are currently in Planning Mode. Your goal is to design a technical solution 
                         }
                         if (delta?.reasoning_content) {
                             this._onThinkingToken.fire(delta.reasoning_content);
+                        }
+                        if (delta?.reasoning) {
+                            this._onThinkingToken.fire(delta.reasoning);
+                        }
+                        if (delta?.thinking) {
+                            this._onThinkingToken.fire(delta.thinking);
                         }
                         if (delta?.tool_calls) {
                             for (const call of delta.tool_calls) {
