@@ -17,6 +17,18 @@ class SettingsManager {
     getModel() {
         return this.context.globalState.get('cycy.model') || '';
     }
+    async setOllamaUrl(url) {
+        await this.context.globalState.update('cycy.ollamaUrl', url);
+    }
+    getOllamaUrl() {
+        return this.context.globalState.get('cycy.ollamaUrl') || 'http://localhost:11434';
+    }
+    async setCustomHeaders(headers) {
+        await this.context.globalState.update('cycy.customHeaders', headers);
+    }
+    getCustomHeaders() {
+        return this.context.globalState.get('cycy.customHeaders') || '';
+    }
     async setApiKey(provider, apiKey) {
         await this.context.secrets.store(`cycy.apiKey.${provider}`, apiKey);
     }

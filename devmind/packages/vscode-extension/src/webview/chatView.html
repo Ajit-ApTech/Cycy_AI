@@ -859,7 +859,19 @@
 
         <div class="settings-group">
             <label class="settings-label">Model</label>
-            <select id="model-select" class="settings-select"></select>
+            <select id="model-select" class="settings-select" style="margin-bottom: 8px;"></select>
+        </div>
+
+        <!-- Ollama Advanced Settings -->
+        <div id="ollama-advanced" style="display: none; flex-direction: column; gap: 12px; margin-top: 4px; padding: 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 10px; margin-bottom: 15px;">
+            <div class="settings-group">
+                <label class="settings-label" style="font-size: 11px; opacity: 0.8;">Ollama Server URL</label>
+                <input type="text" id="ollama-url-input" class="settings-input" placeholder="http://localhost:11434">
+            </div>
+            <div class="settings-group" style="margin-bottom: 0;">
+                <label class="settings-label" style="font-size: 11px; opacity: 0.8;">Custom Headers (JSON)</label>
+                <input type="text" id="custom-headers-input" class="settings-input" placeholder='{"X-Workspace-ID": "..."}'>
+            </div>
         </div>
 
         <button class="primary-btn" onclick="applySettings()">Save Configuration</button>
@@ -874,11 +886,13 @@
             gemini: { label: '✦ Google Gemini', defaultModels: ['gemini-2.0-flash', 'gemini-1.5-pro'], needsKey: true },
             openai: { label: '◎ OpenAI', defaultModels: ['gpt-4o', 'gpt-4o-mini'], needsKey: true },
             groq: { label: '⚡ Groq (Fast)', defaultModels: ['llama-3.3-70b-versatile'], needsKey: true },
-            ollama: { label: '🖥 Ollama (Local)', defaultModels: ['llama3.2', 'qwen2.5-coder'], needsKey: false }
+            ollama: { label: '🖥 Ollama (Local)', defaultModels: ['llama3.2', 'qwen2.5-coder'], needsKey: true }
         };
 
         let currentProvider = 'gemini';
         let currentModel = '';
+        let currentOllamaUrl = 'http://localhost:11434';
+        let currentCustomHeaders = '';
         let isConfigured = false;
         let isStreaming = false;
 
@@ -924,6 +938,9 @@
                     if (msg.config.provider && PROVIDERS[msg.config.provider]) {
                         currentProvider = msg.config.provider;
                         currentModel = msg.config.model;
+                        currentOllamaUrl = msg.config.ollamaUrl || 'http://localhost:11434';
+                        currentCustomHeaders = msg.config.customHeaders || '';
+                        
                         if (msg.config.hasKey || !PROVIDERS[currentProvider].needsKey) {
                             setConfiguredState(true);
                         }
@@ -939,7 +956,10 @@
                         opt.textContent = m;
                         select.appendChild(opt);
                     });
-                    if (msg.models.length > 0) currentModel = msg.models[0];
+                    if (msg.models.length > 0) {
+                        select.value = msg.models[0];
+                        currentModel = msg.models[0];
+                    }
                     break;
                 case 'token':
                     collapseThinkingBlock();
@@ -949,10 +969,12 @@
                     appendThinkingToken(msg.value);
                     break;
                 case 'error':
-                    appendSystemMessage('❌ Error: ' + msg.value);
+                    isStreaming = false;
+                    appendSystemMessage(`Error: ${msg.value}`, true);
                     setStreamingState(false);
                     break;
                 case 'stopStreaming':
+                    isStreaming = false;
                     setStreamingState(false);
                     collapseThinkingBlock();
                     activeToolStates.clear();
@@ -1080,22 +1102,50 @@
 
             document.getElementById('api-key-input').disabled = !PROVIDERS[currentProvider].needsKey;
             document.getElementById('api-key-input').placeholder = PROVIDERS[currentProvider].needsKey ? 'Enter API Key' : 'No key needed';
+            
+            // Ollama Advanced
+            const ollamaAdv = document.getElementById('ollama-advanced');
+            ollamaAdv.style.display = currentProvider === 'ollama' ? 'flex' : 'none';
+            document.getElementById('ollama-url-input').value = currentOllamaUrl;
+            document.getElementById('custom-headers-input').value = currentCustomHeaders;
         }
 
         function fetchModels() {
             const key = document.getElementById('api-key-input').value;
-            vscode.postMessage({ type: 'fetchModels', provider: currentProvider, apiKey: key });
+            const ollamaUrl = document.getElementById('ollama-url-input').value;
+            const customHeaders = document.getElementById('custom-headers-input').value;
+            vscode.postMessage({ 
+                type: 'fetchModels', 
+                provider: currentProvider, 
+                apiKey: key,
+                ollamaUrl: ollamaUrl,
+                customHeaders: customHeaders
+            });
         }
 
         function applySettings() {
             const key = document.getElementById('api-key-input').value;
             const model = document.getElementById('model-select').value;
-            if (PROVIDERS[currentProvider].needsKey && !key && !isConfigured) {
+            const ollamaUrl = document.getElementById('ollama-url-input').value;
+            const customHeaders = document.getElementById('custom-headers-input').value;
+
+            if (PROVIDERS[currentProvider].needsKey && !key && !isConfigured && currentProvider !== 'ollama') {
                 alert('Please enter an API Key');
                 return;
             }
+            
             currentModel = model;
-            vscode.postMessage({ type: 'setConfig', provider: currentProvider, model: currentModel, apiKey: key });
+            currentOllamaUrl = ollamaUrl;
+            currentCustomHeaders = customHeaders;
+
+            vscode.postMessage({ 
+                type: 'setConfig', 
+                provider: currentProvider, 
+                model: currentModel, 
+                apiKey: key,
+                ollamaUrl: currentOllamaUrl,
+                customHeaders: currentCustomHeaders
+            });
             setConfiguredState(true);
             toggleSettings(false);
 

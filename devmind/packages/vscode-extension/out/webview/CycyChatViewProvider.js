@@ -96,6 +96,12 @@ class CycyChatViewProvider {
                 case 'setConfig':
                     await this._settingsManager.setProvider(data.provider);
                     await this._settingsManager.setModel(data.model);
+                    if (data.provider === 'ollama') {
+                        if (data.ollamaUrl)
+                            await this._settingsManager.setOllamaUrl(data.ollamaUrl);
+                        if (data.customHeaders)
+                            await this._settingsManager.setCustomHeaders(data.customHeaders);
+                    }
                     if (data.apiKey) {
                         await this._settingsManager.setApiKey(data.provider, data.apiKey);
                     }
@@ -109,12 +115,16 @@ class CycyChatViewProvider {
                     const provider = this._settingsManager.getProvider();
                     const model = this._settingsManager.getModel();
                     const apiKey = await this._settingsManager.getApiKey(provider);
+                    const ollamaUrl = this._settingsManager.getOllamaUrl();
+                    const customHeaders = this._settingsManager.getCustomHeaders();
                     webviewView.webview.postMessage({
                         type: 'init',
                         config: {
                             provider,
                             model,
-                            hasKey: !!apiKey
+                            hasKey: !!apiKey,
+                            ollamaUrl,
+                            customHeaders
                         }
                     });
                     break;
@@ -123,6 +133,13 @@ class CycyChatViewProvider {
                         let keyToUse = data.apiKey;
                         if (!keyToUse) {
                             keyToUse = await this._settingsManager.getApiKey(data.provider);
+                        }
+                        // Temporarily update settings for the fetch if they were provided in the data
+                        if (data.provider === 'ollama') {
+                            if (data.ollamaUrl)
+                                await this._settingsManager.setOllamaUrl(data.ollamaUrl);
+                            if (data.customHeaders)
+                                await this._settingsManager.setCustomHeaders(data.customHeaders);
                         }
                         const models = await this._aiService.fetchModels(data.provider, keyToUse);
                         webviewView.webview.postMessage({ type: 'modelsFetched', models });

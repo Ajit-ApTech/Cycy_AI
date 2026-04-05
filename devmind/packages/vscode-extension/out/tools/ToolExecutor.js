@@ -42,12 +42,20 @@ const FileReadingTools_1 = require("./FileReadingTools");
 const FileWritingTools_1 = require("./FileWritingTools");
 const SearchTools_1 = require("./SearchTools");
 const TerminalTools_1 = require("./TerminalTools");
+const WebTools_1 = require("./WebTools");
+const ProjectTools_1 = require("./ProjectTools");
+const UtilityTools_1 = require("./UtilityTools");
+const GitTools_1 = require("./GitTools");
 class ToolExecutor {
     constructor() {
         this.fileReader = new FileReadingTools_1.FileReadingTools();
         this.fileWriter = new FileWritingTools_1.FileWritingTools();
         this.searcher = new SearchTools_1.SearchTools();
         this.terminal = new TerminalTools_1.TerminalTools();
+        this.webTools = new WebTools_1.WebTools();
+        this.projectTools = new ProjectTools_1.ProjectTools();
+        this.utilityTools = new UtilityTools_1.UtilityTools();
+        this.gitTools = new GitTools_1.GitTools();
         this.pinnedFiles = new Set();
         // Command confirmation queue
         this.pendingConfirmations = new Map();
@@ -116,6 +124,11 @@ class ToolExecutor {
         // run_command: handle alternate command arg names
         if (!normalized.command)
             normalized.command = normalized.CommandLine || normalized.cmd;
+        // Agent / Skill aliases
+        if (name === 'agent')
+            name = 'Agent';
+        if (name === 'skill')
+            name = 'Skill';
         return normalized;
     }
     async executeTool(name, args) {
@@ -197,6 +210,24 @@ class ToolExecutor {
                         return `Tool Execution Error: Missing "commandId" or "input".`;
                     return await this.terminal.sendCommandInput(args.commandId, args.input);
                 }
+                // --- New Tools ---
+                // Web
+                case 'WebSearch': return await this.webTools.webSearch(args.query, args.allowed_domains, args.blocked_domains);
+                case 'WebFetch': return await this.webTools.webFetch(args.url);
+                // Project
+                case 'TodoWrite': return await this.projectTools.todoWrite(args.todos);
+                case 'Agent': return await this.projectTools.agentRun(args.name, args.description, args.prompt, args.model);
+                case 'Skill': return await this.projectTools.skillLoad(args.skill, args.args);
+                // Utility
+                case 'Sleep': return await this.utilityTools.sleep(args.duration_ms || args.durationMs);
+                case 'Config': return await this.utilityTools.config(args.setting, args.value);
+                case 'SendUserMessage': return await this.utilityTools.sendUserMessage(args.message, args.status);
+                case 'NotebookEdit': return await this.utilityTools.notebookEdit(args.notebook_path, args.cell_id, args.edit_mode, args.new_source);
+                case 'REPL': return await this.utilityTools.executeRepl(args.code, args.language, args.timeout_ms || args.timeoutMs);
+                // Foundation for Git
+                case 'git_status': return await this.gitTools.gitStatus();
+                case 'git_diff': return await this.gitTools.gitDiff(args.staged);
+                case 'git_commit': return await this.gitTools.gitCommit(args.message);
                 // Context Memory
                 case 'pin_file': {
                     this.pinnedFiles.add(args.path);
@@ -428,6 +459,144 @@ class ToolExecutor {
                     },
                     required: ['commandId', 'input']
                 }
+            },
+            // Web Tools
+            {
+                name: 'WebSearch',
+                description: 'Search the web for current information',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        query: { type: 'string', description: 'Search term' },
+                        allowed_domains: { type: 'array', items: { type: 'string' } },
+                        blocked_domains: { type: 'array', items: { type: 'string' } }
+                    },
+                    required: ['query']
+                }
+            },
+            {
+                name: 'WebFetch',
+                description: 'Fetch URL content and convert to markdown',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        url: { type: 'string', description: 'URL to fetch' }
+                    },
+                    required: ['url']
+                }
+            },
+            // Project Tools
+            {
+                name: 'TodoWrite',
+                description: 'Update project task lists in .cycy/todo.json',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        todos: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    id: { type: 'string' },
+                                    description: { type: 'string' },
+                                    status: { type: 'string' },
+                                    priority: { type: 'string' }
+                                },
+                                required: ['id', 'description', 'status']
+                            }
+                        }
+                    },
+                    required: ['todos']
+                }
+            },
+            {
+                name: 'Agent',
+                description: 'Launch specialized sub-agents for tasks',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        name: { type: 'string', description: 'Agent identifier' },
+                        description: { type: 'string', description: 'Agent purpose' },
+                        prompt: { type: 'string', description: 'Task prompt for the agent' },
+                        model: { type: 'string', description: 'Optional model to use' }
+                    },
+                    required: ['name', 'description', 'prompt']
+                }
+            },
+            {
+                name: 'Skill',
+                description: 'Load specific tool skills or guidelines',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        skill: { type: 'string', description: 'Name of the skill to load' },
+                        args: { type: 'string', description: 'Optional arguments for the skill' }
+                    },
+                    required: ['skill']
+                }
+            },
+            // Utility
+            {
+                name: 'REPL',
+                description: 'Execute code in an interactive REPL subprocess',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        code: { type: 'string', description: 'Code to execute' },
+                        language: { type: 'string', description: 'Language (e.g., node, python)' },
+                        timeout_ms: { type: 'number', description: 'Timeout in milliseconds' }
+                    },
+                    required: ['code', 'language']
+                }
+            },
+            {
+                name: 'Sleep',
+                description: 'Wait without blocking',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        duration_ms: { type: 'number', description: 'Milliseconds to sleep' }
+                    },
+                    required: ['duration_ms']
+                }
+            },
+            {
+                name: 'Config',
+                description: 'Get or set VS Code workspace configuration',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        setting: { type: 'string', description: 'Setting key to read or write' },
+                        value: { type: 'string', description: 'Value to set (omit to just read)' }
+                    },
+                    required: ['setting']
+                }
+            },
+            {
+                name: 'SendUserMessage',
+                description: 'Send a notification message to the user',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        message: { type: 'string', description: 'Message content' },
+                        status: { type: 'string', description: 'Message type: info, success, or error' }
+                    },
+                    required: ['message', 'status']
+                }
+            },
+            {
+                name: 'NotebookEdit',
+                description: 'Edit a cell within a Jupyter notebook',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        notebook_path: { type: 'string', description: 'Path to notebook' },
+                        cell_id: { type: 'string', description: 'Cell identifier' },
+                        edit_mode: { type: 'string', description: 'Edit mode (e.g., replace)' },
+                        new_source: { type: 'string', description: 'New code source' }
+                    },
+                    required: ['notebook_path', 'cell_id', 'edit_mode', 'new_source']
+                }
             }
         ];
     }
@@ -445,5 +614,8 @@ ToolExecutor.TOOL_ALIASES = {
     'search_files': 'grep_search',
     'execute_command': 'run_command',
     'shell': 'run_command',
+    'bash': 'run_command',
+    'PowerShell': 'run_command',
+    'glob_search': 'find_by_name',
 };
 //# sourceMappingURL=ToolExecutor.js.map

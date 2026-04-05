@@ -57,6 +57,35 @@ export class ModelService {
                 }
             }
 
+            if (providerId === 'ollama') {
+                const modelNames = new Set<string>();
+                
+                // 1. Try native Ollama tags endpoint
+                try {
+                    const response = await axios.get(url, { headers, timeout: 5000 });
+                    const data = response.data;
+                    data.models?.forEach((m: any) => {
+                        if (m.name) modelNames.add(m.name);
+                    });
+                } catch (e: any) {
+                    console.warn('[ModelService] Ollama /api/tags failed:', e.message);
+                }
+
+                // 2. Try OpenAI compatible v1/models
+                try {
+                    const v1Url = url.replace('/api/tags', '/v1/models');
+                    const response = await axios.get(v1Url, { headers, timeout: 5000 });
+                    const data = response.data;
+                    data.data?.forEach((m: any) => {
+                        if (m.id) modelNames.add(m.id);
+                    });
+                } catch (e: any) {
+                    console.warn('[ModelService] Ollama /v1/models failed:', e.message);
+                }
+
+                return Array.from(modelNames);
+            }
+
             const response = await axios.get(url, { headers, timeout: 10000 });
 
             if (provider.transformResponse) {
